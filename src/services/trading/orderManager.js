@@ -36,6 +36,18 @@ function isRestingOrderType(orderType) {
   return RESTING_ORDER_TYPES.includes(String(orderType || '').toLowerCase());
 }
 
+// Delta rejects a limit price that is not a whole multiple of the product's
+// tick size (BTCUSD tick_size = 0.5), so snap the price before submitting.
+// Without this every live entry is refused with an invalid-price error.
+function roundToTick(price, tickSize) {
+  const tick = Number(tickSize);
+  const value = Number(price);
+  if (!Number.isFinite(tick) || tick <= 0 || !Number.isFinite(value) || value <= 0) return value || 0;
+
+  const decimals = (String(tick).split('.')[1] || '').length;
+  return Number((Math.round(value / tick) * tick).toFixed(decimals));
+}
+
 // How long a resting entry stays alive before it is cancelled (4 x 15m by default).
 function entryValidityMs() {
   return Number(config.strategy.entryValidityMinutes || 60) * 60 * 1000;
@@ -79,17 +91,16 @@ async function execute(rawSignal, options = {}) {
       throw new AppError('Duplicate order blocked: this order was already submitted', 409);
     }
 
-    // A resting order for the same instrument means a setup is already working:
-    // never stack a second entry on top of it. Reduce-only exits are exempt.
+    // Concurrency gate. A strategy may hold up to `maxConcurrentPositions`
+    // positions at once; each new entry is assigned the lowest free slot so the
+    // trade manager can keep the slots independent. Reduce-only exits are exempt.
     if (!options.reduceOnly) {
-      const liveOrder = await findLiveOrder(signal.symbol);
-      if (liveOrder) {
-        const reason =
-          `A ${String(liveOrder.side).toUpperCase()} order for ${signal.symbol} ` +
-          `is already live (${liveOrder._id})`;
-        logger.warn(`Order blocked: ${reason}`);
-        return { executed: false, reason, signal };
+      const gate = await concurrencyGate(signal.symbol);
+      if (!gate.allowed) {
+        logger.warn(`Order blocked: ${gate.reason}`);
+        return { executed: false, reason: gate.reason, signal };
       }
+      signal.meta = { ...(signal.meta || {}), slot: gate.slot };
     }
 
     const context = await buildRiskContext(signal, options);
@@ -171,6 +182,19 @@ async function findLiveOrder(symbol) {
   if (!target) return null;
 
   return Order.findOne({ symbol: target, status: { $in: OPEN_ORDER_STATUSES } }).sort({ createdAt: -1 });
+}
+
+// All live ENTRY orders for a symbol (reduce-only exits excluded) — a symbol
+// can have several when a strategy holds concurrent slots.
+async function findLiveEntries(symbol) {
+  const target = normalizeSymbol(symbol);
+  if (!target) return [];
+
+  return Order.find({
+    symbol: target,
+    status: { $in: OPEN_ORDER_STATUSES },
+    reduceOnly: { $ne: true },
+  }).sort({ createdAt: -1 });
 }
 
 // Drives resting PAPER orders forward: a limit entry fills as soon as the
@@ -289,6 +313,38 @@ function assertNotDuplicateInFlight(clientOrderId) {
   }
 }
 
+// Counts the open positions + resting entry orders for a symbol and returns the
+// lowest free slot. `allowed` is false when every slot is taken.
+async function concurrencyGate(symbol) {
+  const target = normalizeSymbol(symbol);
+  const maxConcurrent = Math.max(1, Number(config.strategy.maxConcurrentPositions) || 1);
+
+  const [positions, liveEntries] = await Promise.all([
+    positionManager.getOpenPositionsBySymbol(target),
+    Order.find({
+      symbol: target,
+      status: { $in: OPEN_ORDER_STATUSES },
+      reduceOnly: { $ne: true },
+    }).select('meta'),
+  ]);
+
+  const used = new Set();
+  positions.forEach((position) => used.add(Number(position.slot) || 0));
+  liveEntries.forEach((order) => used.add(Number(order.meta && order.meta.slot) || 0));
+
+  if (used.size >= maxConcurrent) {
+    return {
+      allowed: false,
+      slot: null,
+      reason: `${maxConcurrent} concurrent positions are already working for ${target}`,
+    };
+  }
+
+  let slot = 0;
+  while (used.has(slot)) slot += 1;
+  return { allowed: true, slot };
+}
+
 // Collects the numbers the risk manager needs.
 async function buildRiskContext(signal, options) {
   const [openTradesCount, recentOrders, positions, tradesToday] = await Promise.all([
@@ -322,6 +378,9 @@ async function buildRiskContext(signal, options) {
     recentOrders,
     referencePrice,
     userId: options.userId || null,
+    // Lets the risk manager exempt closing orders from the entry-throttling
+    // checks (max open trades / duplicate window).
+    reduceOnly: Boolean(options.reduceOnly),
   };
 }
 
@@ -408,6 +467,12 @@ async function executeLiveOrder(signal, options) {
   const bracket = buildBracket(signal, options);
   const resting = isRestingOrderType(signal.orderType);
 
+  // Delta refuses any limit price that is not a whole multiple of the
+  // product's tick size (BTCUSD = 0.5). Snap it here or every live limit
+  // entry/exit comes back "invalid price".
+  const tickSize = product.tick_size ?? product.tickSize ?? null;
+  const limitPrice = roundToTick(signal.price, tickSize);
+
   const order = await Order.create({
     user: options.userId || null,
     clientOrderId: signal.clientOrderId || generateClientOrderId(),
@@ -416,7 +481,7 @@ async function executeLiveOrder(signal, options) {
     side,
     orderType: signal.orderType,
     quantity: signal.quantity,
-    price: signal.price || 0,
+    price: limitPrice || 0,
     status: 'pending',
     mode: 'live',
     ...bracket,
@@ -432,7 +497,7 @@ async function executeLiveOrder(signal, options) {
       size: signal.quantity,
       side,
       orderType: signal.orderType,
-      limitPrice: signal.price,
+      limitPrice,
       reduceOnly: bracket.reduceOnly,
       clientOrderId: order.clientOrderId,
     });
@@ -441,7 +506,7 @@ async function executeLiveOrder(signal, options) {
     order.deltaStatus = response.state || null;
     order.status = mapDeltaOrderStatus(response.state);
     order.averagePrice = Number(response.average_fill_price || 0);
-    order.price = Number(response.limit_price || signal.price || 0);
+    order.price = Number(response.limit_price || limitPrice || 0);
     order.filledAt = order.status === 'filled' ? new Date() : null;
     await order.save();
 
@@ -467,6 +532,7 @@ module.exports = {
   cancelOrder,
   handleOrderUpdate,
   findLiveOrder,
+  findLiveEntries,
   handlePaperTick,
   cancelExpiredOrders,
   moveProtectiveStop,

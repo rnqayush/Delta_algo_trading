@@ -230,13 +230,24 @@ class TradingEngine extends EventEmitter {
         strategy.tickSize = Number(product.tick_size) || Number(strategy.tickSize) || 0.5;
       }
       if (strategy.contractValue !== undefined) {
-        strategy.contractValue = Number(product.contract_value) || Number(strategy.contractValue) || 1;
+        strategy.contractValue = Number(product.contract_value) || Number(strategy.contractValue) || 0.001;
       }
       if (strategy.equity !== undefined) strategy.equity = Number(config.strategy.equity) || strategy.equity;
       if (strategy.riskPercent !== undefined) strategy.riskPercent = Number(config.strategy.riskPercent);
       if (strategy.maxRiskPercent !== undefined) strategy.maxRiskPercent = Number(config.strategy.maxRiskPercent);
       if (strategy.maxNotionalEquity !== undefined) {
         strategy.maxNotionalEquity = Number(config.strategy.maxNotionalEquity);
+      }
+      if (strategy.minContracts !== undefined) {
+        strategy.minContracts = Math.max(1, Number(config.strategy.minContracts) || 1);
+      }
+      if (strategy.fixedContracts !== undefined) {
+        strategy.fixedContracts = Math.max(0, Number(config.strategy.fixedContracts) || 0);
+      }
+      // Keep the strategy's slot count identical to the order gate's so the two
+      // never disagree about how many positions may be open at once.
+      if (strategy.maxConcurrentPositions !== undefined) {
+        strategy.maxConcurrentPositions = Math.max(1, Number(config.strategy.maxConcurrentPositions) || 1);
       }
       if (!strategy.symbol) strategy.symbol = this.symbol;
 
@@ -341,12 +352,21 @@ class TradingEngine extends EventEmitter {
   }
 
   async getStrategyState() {
-    const [position, liveOrder] = await Promise.all([
-      positionManager.getPositionBySymbol(this.symbol),
-      orderManager.findLiveOrder(this.symbol),
+    const [positions, liveEntries] = await Promise.all([
+      positionManager.getOpenPositionsBySymbol(this.symbol),
+      orderManager.findLiveEntries(this.symbol),
     ]);
 
-    return { hasOpenPosition: Boolean(position), hasLiveOrder: Boolean(liveOrder) };
+    // A strategy may hold several concurrent positions; report the counts so it
+    // can decide whether a free slot is available. The booleans are kept for
+    // strategies that only understand a single position.
+    return {
+      hasOpenPosition: positions.length > 0,
+      hasLiveOrder: liveEntries.length > 0,
+      openPositions: positions.length,
+      liveOrders: liveEntries.length,
+      positions,
+    };
   }
 
   // Switches the engine to event-driven mode using the Delta WebSocket.

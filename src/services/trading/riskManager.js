@@ -67,18 +67,22 @@ async function validate(signal, context = {}) {
     return reject(`Daily loss limit reached (${dailyPnl}). Trading is halted for today.`);
   }
 
-  // 7. Maximum number of open trades
+  // 7. Maximum number of open trades. Exits are exempt: they reduce exposure,
+  // and with concurrent slots several positions can be closed in one cycle.
   const openTradesCount = Number(context.openTradesCount || 0);
-  if (openTradesCount >= settings.maxOpenTrades) {
+  if (!context.reduceOnly && openTradesCount >= settings.maxOpenTrades) {
     return reject(`Maximum number of open trades reached (${settings.maxOpenTrades})`);
   }
 
-  // 8. Duplicate order protection (same symbol + side in a short window)
-  const duplicate = findDuplicate(signal, context.recentOrders || []);
-  if (duplicate) {
-    return reject(
-      `Duplicate order blocked: a ${duplicate.side.toUpperCase()} order for ${duplicate.symbol} was already placed moments ago`
-    );
+  // 8. Duplicate order protection (same symbol + side in a short window).
+  // Exempt for exits — two slots may legitimately exit the same side together.
+  if (!context.reduceOnly) {
+    const duplicate = findDuplicate(signal, context.recentOrders || []);
+    if (duplicate) {
+      return reject(
+        `Duplicate order blocked: a ${duplicate.side.toUpperCase()} order for ${duplicate.symbol} was already placed moments ago`
+      );
+    }
   }
 
   // 9. Price deviation — protects against stale or fat-fingered prices

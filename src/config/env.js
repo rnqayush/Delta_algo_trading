@@ -69,12 +69,24 @@ const config = {
     riskPercent: toNumber(process.env.STRATEGY_RISK_PERCENT, 0.005),
     maxRiskPercent: toNumber(process.env.STRATEGY_MAX_RISK_PERCENT, 0.01),
     // Max notional per trade as a multiple of equity (3x equity by default).
+    // On a leveraged account this doubles as the exposure ceiling: the strategy
+    // will not carry more total notional than this multiple of equity.
     maxNotionalEquity: toNumber(process.env.STRATEGY_MAX_NOTIONAL_EQUITY, 3),
+    // Smallest tradable size. A tiny (e.g. leveraged) account rounds the
+    // risk-based size to zero contracts, which would mean it never trades at
+    // all; this floor lets it put on the exchange minimum (1 contract).
+    minContracts: toNumber(process.env.STRATEGY_MIN_CONTRACTS, 1),
+    // When > 0, every order is exactly this many contracts and the risk/notional
+    // sizing is bypassed ("always place 1 lot"). 0 = use risk-based sizing.
+    fixedContracts: toNumber(process.env.STRATEGY_FIXED_CONTRACTS, 0),
     // A resting entry limit is cancelled after this many minutes (4 x 15m).
     entryValidityMinutes: toNumber(process.env.STRATEGY_ENTRY_VALIDITY_MINUTES, 60),
+    // How many positions a strategy may hold at once (VHR-15 needs > 1 to hit
+    // its 4+/day order target). Strategies that do not support it stay at one.
+    maxConcurrentPositions: toNumber(process.env.STRATEGY_MAX_CONCURRENT_POSITIONS, 4),
     // How often the engine re-evaluates the strategy and manages positions.
     evaluateIntervalMs: toNumber(process.env.STRATEGY_EVALUATE_INTERVAL_MS, 3000),
-    candles15mCount: toNumber(process.env.STRATEGY_CANDLES_15M, 200),
+    candles15mCount: toNumber(process.env.STRATEGY_CANDLES_15M, 300),
     candles1hCount: toNumber(process.env.STRATEGY_CANDLES_1H, 100),
   },
 };

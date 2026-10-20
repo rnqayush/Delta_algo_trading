@@ -22,7 +22,11 @@ function buildQueryString(params) {
 }
 
 function signRequest({ method, path, queryString = '', rawBody = '', timestamp, secret }) {
-  const payload = `${String(method).toUpperCase()}${timestamp}${path}${queryString}${rawBody}`;
+  // Delta signs method + timestamp + path + query_string + body, where the
+  // query string must include its leading "?" (Delta echoes this back in its
+  // "Signature Mismatch" error, e.g. GET<ts>/v2/orders?product_ids=27).
+  const query = queryString ? `?${queryString}` : '';
+  const payload = `${String(method).toUpperCase()}${timestamp}${path}${query}${rawBody}`;
   return crypto
     .createHmac('sha256', secret || config.delta.apiSecret)
     .update(payload)

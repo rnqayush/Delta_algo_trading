@@ -24,7 +24,9 @@ module.exports = {
     orders: '/v2/orders',
     order: (orderId) => `/v2/orders/${orderId}`,
     ordersHistory: '/v2/orders/history',
-    positions: '/v2/positions',
+    // Delta India serves positions from the "margined" path; plain /v2/positions
+    // replies with a "bad_schema" error.
+    positions: '/v2/positions/margined',
     walletBalances: '/v2/wallet/balances',
   },
 

@@ -40,20 +40,47 @@ async function getPositionBySymbol(symbol) {
   const target = normalizeSymbol(symbol);
   if (!target) return null;
 
-  return Position.findOne({ symbol: target, status: 'open' });
+  return Position.findOne({ symbol: target, status: 'open' }).sort({ createdAt: -1 });
 }
 
-// Refreshes the mark-to-market value of an open position.
-async function updatePositionPrice(symbol, price) {
-  const position = await getPositionBySymbol(symbol);
+// Every open position for a symbol, oldest first. A symbol can hold several
+// when a strategy uses concurrent slots (see orderManager.concurrencyGate).
+async function getOpenPositionsBySymbol(symbol) {
+  const target = normalizeSymbol(symbol);
+  if (!target) return [];
+
+  return Position.find({ symbol: target, status: 'open' }).sort({ createdAt: 1 });
+}
+
+// The open Trade that belongs to a position. With concurrent slots there can be
+// several open trades for one symbol, so the entry order id (stored in the
+// position plan) is the reliable link; fall back to the newest for legacy rows.
+async function findTradeForPosition(position) {
   if (!position) return null;
 
-  const currentPrice = Number(price) || position.entryPrice;
-  position.currentPrice = currentPrice;
-  position.unrealizedPnl = calculatePnl(position.side, position.entryPrice, currentPrice, position.quantity);
+  const entryOrderId = position.plan && position.plan.entryOrderId;
+  if (entryOrderId) {
+    const linked = await Trade.findOne({ entryOrder: entryOrderId, status: 'open' });
+    if (linked) return linked;
+  }
 
-  await position.save();
-  return position;
+  return Trade.findOne({ symbol: position.symbol, status: 'open' }).sort({ createdAt: -1 });
+}
+
+// Refreshes the mark-to-market value of every open position for the symbol.
+async function updatePositionPrice(symbol, price) {
+  const positions = await getOpenPositionsBySymbol(symbol);
+  if (!positions.length) return null;
+
+  let last = null;
+  for (const position of positions) {
+    const currentPrice = Number(price) || position.entryPrice;
+    position.currentPrice = currentPrice;
+    position.unrealizedPnl = calculatePnl(position.side, position.entryPrice, currentPrice, position.quantity);
+    await position.save();
+    last = position;
+  }
+  return last;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,6 +103,9 @@ async function openPosition(order, quantity, price, symbol) {
     status: 'open',
     mode: order.mode,
     strategyName: order.strategyName || 'manual',
+    // Which concurrent slot this entry belongs to (0..N-1). Assigned by
+    // orderManager.concurrencyGate and carried in the signal meta.
+    slot: Number((order.meta && order.meta.slot) || 0),
     // Trade-management plan carried over from the entry signal (may be empty
     // for manual/live-discovered positions, in which case it is left unmanaged).
     stopLoss: order.stopLoss || null,
@@ -122,10 +152,24 @@ async function applyOrder(order) {
     return null;
   }
 
-  const position = await getPositionBySymbol(symbol);
   const orderSide = sideFromOrder(order.side);
 
-  // 1. Nothing open yet — start a new position.
+  // A symbol can hold several positions at once (one per concurrent slot), so
+  // resolve WHICH position this fill belongs to:
+  //   * an exit (reduce-only) carries the target position id in its meta;
+  //   * an entry belongs to the slot the concurrency gate assigned it.
+  const isExit = Boolean(order.reduceOnly) || order.purpose === 'exit';
+  let position = null;
+  if (isExit) {
+    const explicitId = order.meta && order.meta.positionId;
+    position = explicitId ? await Position.findById(explicitId) : await getPositionBySymbol(symbol);
+    if (position && position.status !== 'open') position = null;
+  } else {
+    const slot = Number((order.meta && order.meta.slot) || 0);
+    position = await Position.findOne({ symbol, status: 'open', slot }).sort({ createdAt: -1 });
+  }
+
+  // 1. Nothing open in this slot — start a new position.
   if (!position) {
     return openPosition(order, quantity, price, symbol);
   }
@@ -140,7 +184,7 @@ async function applyOrder(order) {
     position.unrealizedPnl = 0;
     await position.save();
 
-    const trade = await Trade.findOne({ symbol, status: 'open' }).sort({ createdAt: -1 });
+    const trade = await findTradeForPosition(position);
     if (trade) {
       trade.quantity = totalQuantity;
       trade.entryPrice = position.entryPrice;
@@ -164,7 +208,7 @@ async function applyOrder(order) {
     position.unrealizedPnl = calculatePnl(position.side, position.entryPrice, price, remaining);
     await position.save();
 
-    const trade = await Trade.findOne({ symbol, status: 'open' }).sort({ createdAt: -1 });
+    const trade = await findTradeForPosition(position);
     if (trade) {
       trade.quantity = remaining;
       trade.pnl = (trade.pnl || 0) + realizedPnl;
@@ -183,7 +227,7 @@ async function applyOrder(order) {
   position.unrealizedPnl = 0;
   await position.save();
 
-  const trade = await Trade.findOne({ symbol, status: 'open' }).sort({ createdAt: -1 });
+  const trade = await findTradeForPosition(position);
   if (trade) {
     trade.exitPrice = price;
     trade.exitAt = new Date();
@@ -274,6 +318,8 @@ async function exitPartial(position, percent, price, reason, userId) {
       orderType: 'market_order',
       strategyName: position.strategyName,
       reason,
+      // Tells applyOrder which of the concurrent positions this exit reduces.
+      meta: { positionId: String(position._id) },
     },
     { userId, reduceOnly: true, fetchReferencePrice: false }
   );
@@ -290,18 +336,80 @@ async function exitPartial(position, percent, price, reason, userId) {
 async function exitPosition(position, price, reason, userId) {
   try {
     logger.info(`Exiting ${position.side} ${position.symbol}: ${reason}`);
-    return await closePosition({ symbol: position.symbol, price, userId });
+    return await closePosition({ symbol: position.symbol, price, userId, positionId: position._id });
   } catch (error) {
     logger.warn(`Could not exit the ${position.side} position on ${position.symbol}: ${error.message}`);
     return position;
   }
 }
 
-// The SL/TP/structure state machine. Returns the (possibly updated) position.
+// Trade management entry point. Runs for EVERY open position of the symbol
+// (a strategy can hold several concurrent slots) and dispatches to the manager
+// that matches the position's exit plan.
 async function manageOpenPosition({ symbol, price, candles15m = [], userId = null } = {}) {
-  const position = await getPositionBySymbol(symbol);
-  if (!position || position.status !== 'open') return null;
+  const positions = await getOpenPositionsBySymbol(symbol);
+  if (!positions.length) return null;
 
+  let last = null;
+  for (const position of positions) {
+    try {
+      last = await managePosition(position, { price, candles15m, userId });
+    } catch (error) {
+      logger.error(`Could not manage position ${position._id} on ${position.symbol}: ${error.message}`);
+      last = position;
+    }
+  }
+  return last;
+}
+
+// Dispatches a single position to the right exit machine.
+function managePosition(position, context) {
+  const exitMode = (position.plan && position.plan.exitMode) || 'staged';
+  return exitMode === 'simple'
+    ? manageSimplePosition(position, context)
+    : manageStagedPosition(position, context);
+}
+
+// Simple exit machine: one hard stop, one fixed target, one time exit. Used by
+// VHR-15, whose backtest models exactly this (full exit at the target).
+async function manageSimplePosition(position, { price, userId }) {
+  const entry = Number(position.entryPrice);
+  const mark = Number(price);
+  if (!mark || !entry) return position;
+
+  const side = position.side;
+  const stop = Number(position.stopLoss);
+  const target =
+    Array.isArray(position.takeProfit) && position.takeProfit.length
+      ? Number(position.takeProfit[0].price)
+      : null;
+
+  // 1. Hard stop (taker / market exit).
+  if (Number.isFinite(stop) && (side === 'long' ? mark <= stop : mark >= stop)) {
+    return exitPosition(position, mark, `Stop loss at ${stop}`, userId);
+  }
+
+  // 2. Fixed target (full exit).
+  if (Number.isFinite(target) && target > 0 && (side === 'long' ? mark >= target : mark <= target)) {
+    return exitPosition(position, mark, `Target at ${target}`, userId);
+  }
+
+  // 3. Time exit — the backtest's hard time stop (e.g. 64 x 15m = 16h).
+  const timeExitBars = Number((position.plan && position.plan.timeExitBars) || 0);
+  if (timeExitBars > 0) {
+    const bars = Math.max(0, Math.floor((Date.now() - new Date(position.openedAt).getTime()) / (15 * 60 * 1000)));
+    if (bars >= timeExitBars) {
+      return exitPosition(position, mark, `Time exit after ${bars} bars`, userId);
+    }
+  }
+
+  return position;
+}
+
+// Staged exit machine (Sweep & Shift): hard stop, 40% at +1R, 30% at +2R with
+// the stop locked to +1R, then a structural trail on the runner. Returns the
+// (possibly updated) position.
+async function manageStagedPosition(position, { price, candles15m = [], userId }) {
   const entry = Number(position.entryPrice);
   const mark = Number(price);
   if (!mark) return position;
@@ -374,9 +482,10 @@ async function manageOpenPosition({ symbol, price, candles15m = [], userId = nul
 
 // Closing sends a reduce-only order in the opposite direction. It goes through
 // the order manager so it is risk-checked, persisted and reflected in the books.
-async function closePosition({ symbol, price, userId = null } = {}) {
-  const position = await getPositionBySymbol(symbol);
-  if (!position) {
+// `positionId` closes one specific slot when a symbol holds several positions.
+async function closePosition({ symbol, price, userId = null, positionId = null } = {}) {
+  const position = positionId ? await Position.findById(positionId) : await getPositionBySymbol(symbol);
+  if (!position || position.status !== 'open') {
     throw new AppError(`No open position found for ${normalizeSymbol(symbol)}`, 404);
   }
 
@@ -394,6 +503,7 @@ async function closePosition({ symbol, price, userId = null } = {}) {
       orderType: 'market_order',
       strategyName: position.strategyName,
       reason: `Closing the ${position.side} position on ${position.symbol}`,
+      meta: { positionId: String(position._id) },
     },
     { userId, reduceOnly: true, fetchReferencePrice: false }
   );
@@ -503,6 +613,7 @@ async function handlePositionUpdate(update = {}) {
 module.exports = {
   getPositions,
   getPositionBySymbol,
+  getOpenPositionsBySymbol,
   updatePositionPrice,
   applyOrder,
   manageOpenPosition,

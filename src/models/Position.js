@@ -18,6 +18,10 @@ const positionSchema = new mongoose.Schema(
     mode: { type: String, enum: ['paper', 'live'], default: 'paper' },
     strategyName: { type: String, default: 'manual' },
 
+    // Slot index when a strategy holds several positions at once (0..N-1).
+    // Single-position strategies leave it at 0.
+    slot: { type: Number, default: 0 },
+
     // Trade-management plan (set when the entry fills). The stop is a real
     // price level; `stage` tracks which partial exits have already fired.
     stopLoss: { type: Number, default: null },
