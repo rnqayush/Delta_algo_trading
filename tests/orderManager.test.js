@@ -188,3 +188,65 @@ describe('Order manager (resting paper entries)', () => {
     );
   });
 });
+
+describe('Protective stop (paper mode)', () => {
+  const withStop = { ...signal, stopLoss: 98 };
+
+  it('rests an opposite-side reduce-only stop when a position opens', async () => {
+    await orderManager.execute(withStop, options);
+
+    const stop = await Order.findOne({ purpose: 'stop' });
+    expect(stop).not.toBeNull();
+    expect(stop.orderType).toBe('stop_market_order');
+    expect(stop.side).toBe('sell'); // opposite of the long entry
+    expect(stop.reduceOnly).toBe(true);
+    expect(stop.price).toBe(98);
+    expect(stop.status).toBe('open');
+  });
+
+  it('moves the resting stop when the trail advances', async () => {
+    await orderManager.execute(withStop, options);
+
+    await orderManager.moveProtectiveStop('BTCUSD', 99.5);
+
+    const stop = await Order.findOne({ purpose: 'stop' });
+    expect(stop.price).toBe(99.5);
+  });
+
+  it('cancels the resting stop once the position is closed', async () => {
+    await orderManager.execute(withStop, options);
+
+    await orderManager.execute(
+      { action: 'SELL', symbol: 'BTCUSD', quantity: 2, price: 101 },
+      { ...options, reduceOnly: true }
+    );
+
+    const stop = await Order.findOne({ purpose: 'stop' });
+    expect(stop.status).toBe('cancelled');
+  });
+});
+
+describe('WebSocket order updates', () => {
+  it('applies a fill only once even when Delta repeats the update', async () => {
+    await Order.create({
+      clientOrderId: 'ws-1',
+      deltaOrderId: 'D1',
+      symbol: 'BTCUSD',
+      side: 'buy',
+      orderType: 'market_order',
+      quantity: 2,
+      price: 100,
+      averagePrice: 100,
+      status: 'open',
+      mode: 'live',
+      purpose: 'entry',
+    });
+
+    await orderManager.handleOrderUpdate({ id: 'D1', state: 'closed', average_fill_price: 100 });
+    await orderManager.handleOrderUpdate({ id: 'D1', state: 'closed', average_fill_price: 100 });
+
+    const position = await Position.findOne({ symbol: 'BTCUSD', status: 'open' });
+    expect(position.quantity).toBe(2); // a repeat update must not double the fill
+    expect(await Trade.countDocuments()).toBe(1);
+  });
+});

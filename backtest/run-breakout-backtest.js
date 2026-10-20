@@ -136,7 +136,9 @@ function fmt(m, tag = '') {
     `dd=${String(m.maxDrawdownPct).padStart(6)}% ` +
     `t/d=${String(m.tradesPerDay).padStart(5)} ` +
     `hold=${String(m.avgHoldBars).padStart(5)} ` +
-    `exp=${String(m.expectancy).padStart(6)}` +
+    `exp=${String(m.expectancy).padStart(6)} ` +
+    `aw=${String(m.avgWin).padStart(6)} ` +
+    `al=${String(m.avgLoss).padStart(7)}` +
     tag
   );
 }

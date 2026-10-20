@@ -1,0 +1,16 @@
+{
+  "levelSource": ["donchian"],
+  "entryStyle": ["stop"],
+  "levelLookbackBars": [240],
+  "trendEma": [200],
+  "trendSlopeBars": [20],
+  "breakBufferAtr": [0.05, 0.2, 0.4],
+  "minBodyRatio": [0.45, 0.6],
+  "minCloseLocation": [0.6, 0.75],
+  "minRangeAtr": [0.8, 1.2],
+  "stopMode": ["atr"],
+  "stopAtrMult": [3],
+  "exitMode": ["simple"],
+  "targetR": [6],
+  "timeExitBars": [576]
+}

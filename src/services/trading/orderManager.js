@@ -157,6 +157,11 @@ async function handleOrderUpdate(payload = {}) {
     return null;
   }
 
+  // Delta repeats updates for an order (e.g. a later "closed" state). The books
+  // must only be touched on the one transition into "filled", otherwise the
+  // same fill is counted twice.
+  const wasFilled = order.status === 'filled';
+
   if (payload.state) {
     order.deltaStatus = payload.state;
     order.status = mapDeltaOrderStatus(payload.state);
@@ -168,7 +173,7 @@ async function handleOrderUpdate(payload = {}) {
   await order.save();
   logger.info(`Order ${deltaOrderId} updated from WebSocket -> ${order.status}`);
 
-  if (order.status === 'filled') {
+  if (!wasFilled && order.status === 'filled') {
     await positionManager.applyOrder(order);
   }
   return order;
@@ -277,9 +282,110 @@ async function cancelExpiredOrders(symbol) {
   return cancelled;
 }
 
+// Resting protective stop for an open position.
+//
+// A protective stop is a reduce-only stop_market_order sitting on the opposite
+// side of the position. It is a *safety net*: it lives on Delta, so the position
+// stays protected even if this process is down when the stop is reached, and it
+// is what moveProtectiveStop keeps in sync with the trailed level.
+//
+// It is deliberately NOT run through execute(): it is not a new entry, so it
+// must skip the risk checks, the concurrency gate and the duplicate guard.
+async function placeProtectiveStop(position) {
+  if (!position) return null;
+
+  const symbol = normalizeSymbol(position.symbol);
+  const stopPrice = Number(position.initialStopLoss ?? position.stopLoss);
+  const quantity = Math.abs(Number(position.quantity));
+  if (!symbol || !Number.isFinite(stopPrice) || stopPrice <= 0 || !quantity) return null;
+
+  // A protective stop always sits on the opposite side of the position.
+  const side = position.side === 'long' ? 'sell' : 'buy';
+  const positionId = String(position._id);
+  const isLive = position.mode === 'live';
+
+  // Never stack a second stop for the same position.
+  const existing = await Order.findOne({
+    symbol,
+    purpose: 'stop',
+    status: { $in: OPEN_ORDER_STATUSES },
+    'meta.positionId': positionId,
+  });
+  if (existing) return existing;
+
+  // Live orders need the product id and a tick-aligned stop price.
+  let productId = position.productId || null;
+  let tickSize = null;
+  if (isLive) {
+    const product = await marketService.getProduct(symbol);
+    productId = productId || product.id;
+    tickSize = product.tick_size ?? product.tickSize ?? null;
+    position.productId = productId;
+  }
+
+  const clientOrderId = generateClientOrderId();
+  const order = await Order.create({
+    user: position.user || null,
+    clientOrderId,
+    symbol,
+    productId,
+    side,
+    orderType: 'stop_market_order',
+    quantity,
+    price: stopPrice,
+    status: isLive ? 'pending' : 'open',
+    mode: position.mode,
+    purpose: 'stop',
+    reduceOnly: true,
+    stopLoss: stopPrice,
+    // Links the stop back to the slot it protects so a fill closes the right
+    // position (see positionManager.applyOrder).
+    meta: { positionId },
+    strategyName: position.strategyName || 'manual',
+    reason: 'Protective stop for the open position',
+  });
+
+  if (!isLive) {
+    logger.info(`Paper protective stop resting at ${stopPrice} for ${symbol}`);
+    return order;
+  }
+
+  if (!config.trading.isLive) {
+    logger.warn(`Protective stop for ${symbol} was not placed — live trading is disabled`);
+    return order;
+  }
+
+  try {
+    const response = await orderService.placeOrder({
+      symbol,
+      productId,
+      size: quantity,
+      side,
+      orderType: 'stop_market_order',
+      stopPrice: roundToTick(stopPrice, tickSize),
+      reduceOnly: true,
+      clientOrderId,
+    });
+
+    order.deltaOrderId = String(response.id ?? response.order_id ?? '');
+    order.deltaStatus = response.state || null;
+    order.status = mapDeltaOrderStatus(response.state);
+    await order.save();
+
+    logger.info(`Protective stop placed for ${symbol} at ${stopPrice} (delta id ${order.deltaOrderId})`);
+  } catch (error) {
+    order.status = 'rejected';
+    order.errorMessage = error.message;
+    await order.save();
+    logger.error(`Could not place the protective stop for ${symbol}: ${error.message}`);
+  }
+
+  return order;
+}
+
 // Moves the protective stop that belongs to an open position. Paper positions
-// keep their stop on the Position document, so there is usually no order to
-// move; a live stop order is updated when one exists.
+// keep the level on the Order document; a live stop is cancelled and re-placed
+// on Delta because the API has no "modify order" endpoint.
 async function moveProtectiveStop(symbol, stopLoss) {
   const target = normalizeSymbol(symbol);
   const price = Number(stopLoss);
@@ -296,10 +402,88 @@ async function moveProtectiveStop(symbol, stopLoss) {
     return null;
   }
 
+  if (stopOrder.mode === 'live' && stopOrder.deltaOrderId) {
+    if (!config.trading.isLive) {
+      logger.warn(`Protective stop for ${target} was not moved on Delta — live trading is disabled`);
+      return stopOrder;
+    }
+    return replaceLiveStop(stopOrder, price);
+  }
+
   stopOrder.price = price;
   await stopOrder.save();
 
   logger.info(`Protective stop for ${target} moved to ${price}`);
+  return stopOrder;
+}
+
+// Cancels the resting protective stops that belong to a position. Called when
+// the position is closed by something other than the stop itself, so nothing is
+// left resting on the exchange.
+async function cancelProtectiveStopsForPosition(position) {
+  if (!position) return 0;
+
+  const stops = await Order.find({
+    symbol: normalizeSymbol(position.symbol),
+    purpose: 'stop',
+    status: { $in: OPEN_ORDER_STATUSES },
+    'meta.positionId': String(position._id),
+  });
+
+  let cancelled = 0;
+  for (const stop of stops) {
+    if (stop.mode === 'live' && stop.deltaOrderId) {
+      if (!config.trading.isLive) {
+        logger.warn(`Protective stop for ${position.symbol} was not cancelled — live trading is disabled`);
+        continue;
+      }
+      try {
+        await orderService.cancelOrder({ orderId: stop.deltaOrderId, productId: stop.productId });
+      } catch (error) {
+        logger.warn(`Could not cancel the protective stop ${stop._id}: ${error.message}`);
+        continue;
+      }
+    }
+
+    stop.status = 'cancelled';
+    await stop.save();
+    cancelled += 1;
+  }
+
+  return cancelled;
+}
+
+// Delta has no modify-order endpoint, so a moved stop is a cancel plus a fresh
+// stop_market_order. Only the tracked Order document is reused.
+async function replaceLiveStop(stopOrder, price) {
+  const productId = stopOrder.productId || (await marketService.getProduct(stopOrder.symbol)).id;
+
+  try {
+    await orderService.cancelOrder({ orderId: stopOrder.deltaOrderId, productId });
+  } catch (error) {
+    logger.warn(`Could not cancel the old protective stop (${stopOrder.deltaOrderId}): ${error.message}`);
+  }
+
+  const clientOrderId = generateClientOrderId();
+  const response = await orderService.placeOrder({
+    symbol: stopOrder.symbol,
+    productId,
+    size: stopOrder.quantity,
+    side: stopOrder.side,
+    orderType: 'stop_market_order',
+    stopPrice: price,
+    reduceOnly: true,
+    clientOrderId,
+  });
+
+  stopOrder.price = price;
+  stopOrder.clientOrderId = clientOrderId;
+  stopOrder.deltaOrderId = String(response.id ?? response.order_id ?? '');
+  stopOrder.deltaStatus = response.state || null;
+  stopOrder.status = mapDeltaOrderStatus(response.state);
+  await stopOrder.save();
+
+  logger.info(`Protective stop for ${stopOrder.symbol} replaced at ${price} (delta id ${stopOrder.deltaOrderId})`);
   return stopOrder;
 }
 
@@ -348,7 +532,9 @@ async function concurrencyGate(symbol) {
 // Collects the numbers the risk manager needs.
 async function buildRiskContext(signal, options) {
   const [openTradesCount, recentOrders, positions, tradesToday] = await Promise.all([
-    Order.countDocuments({ status: { $in: OPEN_ORDER_STATUSES } }),
+    // Only working ENTRIES count as "open trades" — protective stops are
+    // reduce-only and must not eat into the max-open-trades budget.
+    Order.countDocuments({ status: { $in: OPEN_ORDER_STATUSES }, reduceOnly: { $ne: true } }),
     Order.find({ createdAt: { $gte: new Date(Date.now() - DUPLICATE_LOOKBACK_MS) } })
       .sort({ createdAt: -1 })
       .limit(25)
@@ -535,5 +721,7 @@ module.exports = {
   findLiveEntries,
   handlePaperTick,
   cancelExpiredOrders,
+  placeProtectiveStop,
   moveProtectiveStop,
+  cancelProtectiveStopsForPosition,
 };

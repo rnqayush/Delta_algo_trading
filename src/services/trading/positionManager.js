@@ -10,6 +10,7 @@ const logger = require('../../utils/logger');
 const { AppError } = require('../../utils/errorHandler');
 const { normalizeSymbol } = require('../../utils/helpers');
 const config = require('../../config/env');
+const { atr } = require('../../strategies/lib/indicators');
 const positionService = require('../delta/positionService');
 const marketService = require('../delta/marketService');
 
@@ -131,6 +132,16 @@ async function openPosition(order, quantity, price, symbol) {
   });
 
   logger.info(`Position opened: ${position.side} ${quantity} ${symbol} @ ${price}`);
+
+  // Rest a real protective stop so the position stays protected even if this
+  // process goes down. Required lazily: orderManager already requires this module.
+  try {
+    const orderManager = require('./orderManager');
+    await orderManager.placeProtectiveStop(position);
+  } catch (error) {
+    logger.error('Could not place the protective stop for the new position', error);
+  }
+
   return position;
 }
 
@@ -171,6 +182,13 @@ async function applyOrder(order) {
 
   // 1. Nothing open in this slot — start a new position.
   if (!position) {
+    // A reduce-only fill must never open a position. This happens when a
+    // resting protective stop fills just after the position was closed another
+    // way; there is nothing left to close, so ignore it.
+    if (isExit) {
+      logger.debug(`Ignored a reduce-only fill for ${symbol} — nothing open to close`);
+      return null;
+    }
     return openPosition(order, quantity, price, symbol);
   }
 
@@ -238,6 +256,15 @@ async function applyOrder(order) {
   }
 
   logger.info(`Position closed: ${position.side} ${symbol} @ ${price} (PnL ${realizedPnl})`);
+
+  // The position no longer needs its resting stop. If the stop itself filled it
+  // is already "filled", so this only removes stops left over by other exits.
+  try {
+    const orderManager = require('./orderManager');
+    await orderManager.cancelProtectiveStopsForPosition(position);
+  } catch (error) {
+    logger.warn(`Could not cancel the protective stop for ${symbol}: ${error.message}`);
+  }
 
   // 4. If the order was larger than the position, the excess flips direction.
   const leftover = quantity - closingQuantity;
@@ -365,9 +392,9 @@ async function manageOpenPosition({ symbol, price, candles15m = [], userId = nul
 // Dispatches a single position to the right exit machine.
 function managePosition(position, context) {
   const exitMode = (position.plan && position.plan.exitMode) || 'staged';
-  return exitMode === 'simple'
-    ? manageSimplePosition(position, context)
-    : manageStagedPosition(position, context);
+  if (exitMode === 'simple') return manageSimplePosition(position, context);
+  if (exitMode === 'trail') return manageTrailPosition(position, context);
+  return manageStagedPosition(position, context);
 }
 
 // Simple exit machine: one hard stop, one fixed target, one time exit. Used by
@@ -400,6 +427,92 @@ async function manageSimplePosition(position, { price, userId }) {
     const bars = Math.max(0, Math.floor((Date.now() - new Date(position.openedAt).getTime()) / (15 * 60 * 1000)));
     if (bars >= timeExitBars) {
       return exitPosition(position, mark, `Time exit after ${bars} bars`, userId);
+    }
+  }
+
+  return position;
+}
+
+// ATR "breakeven then trail" exit — the live mirror of the backtest's `trail`
+// mode. Once a trade has paid `beAtR` R the stop moves to breakeven, then it
+// ratchets to `trailAtrMult` x ATR behind each CLOSED base bar's close and never
+// loosens. There is no fixed target: winners are only cut by the trail or the
+// time stop, which is what makes the profile asymmetric (losers ~1R, winners
+// many R). The ATR is recomputed from the same resampled bars the strategy
+// trades, so live == tested.
+async function manageTrailPosition(position, { price, candles15m = [], userId }) {
+  const entry = Number(position.entryPrice);
+  const mark = Number(price);
+  if (!mark || !entry) return position;
+
+  const risk = Math.abs(entry - Number(position.initialStopLoss));
+  if (!risk) return position;
+
+  const side = position.side;
+  const plan = position.plan || {};
+
+  // 1. Hard stop against the live mark, using the current (possibly trailed) stop.
+  const stop = Number(position.stopLoss);
+  if (Number.isFinite(stop) && (side === 'long' ? mark <= stop : mark >= stop)) {
+    return exitPosition(position, mark, `Stop loss at ${stop}`, userId);
+  }
+
+  // 2. Breakeven + ATR trail, advanced on the last CLOSED base bar only.
+  const { normalizeCandles, resampleBars } = require('../../strategies/strategies/srBreakoutStrategy').helpers;
+  const baseMinutes = Number(plan.baseMinutes) || 15;
+  const feedMinutes = Number(plan.feedMinutes) || baseMinutes;
+  const feed = normalizeCandles(candles15m);
+  const lastFeedTime = feed.length ? feed[feed.length - 1].time : 0;
+  const bars = feed.length
+    ? resampleBars(feed, baseMinutes, lastFeedTime + feedMinutes * 60 * 1000)
+    : [];
+
+  if (bars.length) {
+    const bar = bars[bars.length - 1];
+    const atrNow = atr(bars, Number(plan.atrPeriod) || 14).pop();
+    if (atrNow > 0) {
+      const dir = side === 'long' ? 1 : -1;
+      const unrealisedR = (dir * (bar.close - entry)) / risk;
+      let nextStop = Number(position.stopLoss);
+      let planChanged = false;
+      let stopMoved = false;
+
+      if (!plan.beApplied && unrealisedR >= Number(plan.beAtR ?? 1)) {
+        nextStop = entry; // move to breakeven
+        plan.beApplied = true;
+        position.markModified('plan');
+        planChanged = true;
+      }
+      if (plan.beApplied) {
+        const trail =
+          side === 'long'
+            ? bar.close - Number(plan.trailAtrMult ?? 1.5) * atrNow
+            : bar.close + Number(plan.trailAtrMult ?? 1.5) * atrNow;
+        nextStop = side === 'long' ? Math.max(nextStop, trail) : Math.min(nextStop, trail);
+      }
+
+      const rounded = Math.round(nextStop * 100) / 100;
+      if (rounded !== Number(position.stopLoss)) {
+        position.stopLoss = rounded;
+        stopMoved = true;
+      }
+
+      if (planChanged || stopMoved) {
+        await position.save();
+        if (stopMoved) {
+          const orderManager = require('./orderManager');
+          await orderManager.moveProtectiveStop(position.symbol, position.stopLoss);
+        }
+      }
+    }
+  }
+
+  // 3. Time exit — the backtest's hard time stop (48 x 30m = 24h, in 15m bars).
+  const timeExitBars = Number(plan.timeExitBars || 0);
+  if (timeExitBars > 0) {
+    const elapsed = Math.max(0, Math.floor((Date.now() - new Date(position.openedAt).getTime()) / (15 * 60 * 1000)));
+    if (elapsed >= timeExitBars) {
+      return exitPosition(position, mark, `Time exit after ${elapsed} bars`, userId);
     }
   }
 

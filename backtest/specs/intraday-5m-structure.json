@@ -1,0 +1,14 @@
+{
+  "levelSource": ["pivots", "donchian", "both"],
+  "entryStyle": ["close", "stop", "retest"],
+  "trendEma": [0, 200, 400],
+  "minVolMult": [0, 1.2],
+  "squeezeLookback": [0, 20],
+  "maxSqueezeAtr": [0, 1.5],
+  "stopMode": ["atr"],
+  "stopAtrMult": [1.5, 2.5],
+  "exitMode": ["trail"],
+  "beAtR": [0.5],
+  "trailAtrMult": [1.5],
+  "timeExitBars": [96]
+}

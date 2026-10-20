@@ -181,6 +181,22 @@ describe('positionManager.manageOpenPosition', () => {
     expect(stored.status).toBe('open');
     expect(stored.quantity).toBe(100);
   });
+
+  it('ignores a reduce-only fill when nothing is open (never opens a position)', async () => {
+    const applied = await positionManager.applyOrder({
+      symbol: 'BTCUSD',
+      side: 'sell',
+      quantity: 10,
+      averagePrice: 100,
+      status: 'filled',
+      reduceOnly: true,
+      purpose: 'stop',
+      meta: {},
+    });
+
+    expect(applied).toBeNull();
+    expect(await Position.countDocuments()).toBe(0);
+  });
 });
 
 describe('positionManager paper end-to-end', () => {

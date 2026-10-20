@@ -1,0 +1,11 @@
+{
+  "levelSource": ["pivots", "donchian", "both"],
+  "entryStyle": ["close", "stop"],
+  "trendEma": [200, 400],
+  "trendSlopeBars": [0, 20],
+  "stopMode": ["atr"],
+  "stopAtrMult": [2.0, 3.0],
+  "exitMode": ["simple"],
+  "targetR": [3, 4, 6],
+  "timeExitBars": [96, 288]
+}

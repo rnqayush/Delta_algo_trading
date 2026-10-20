@@ -1,0 +1,16 @@
+{
+  "levelSource": ["pivots", "donchian"],
+  "entryStyle": ["retest", "stop"],
+  "levelLookbackBars": [100],
+  "minTouches": [2],
+  "clusterAtrMult": [0.4],
+  "trendEma": [0, 200],
+  "retestValidityBars": [12],
+  "stopMode": ["atr"],
+  "stopAtrMult": [1.5, 2.0, 3.0],
+  "exitMode": ["simple", "trail"],
+  "targetR": [2, 3, 4],
+  "beAtR": [1.0],
+  "trailAtrMult": [1.5, 2.5],
+  "timeExitBars": [32, 64]
+}

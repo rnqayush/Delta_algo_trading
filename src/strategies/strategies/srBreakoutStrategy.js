@@ -30,7 +30,8 @@
 //     price,                          // the broken level (the retest limit)
 //     stopLoss, takeProfit: [{ price, percent: 100 }],
 //     meta: { strategy, side, level, levelTouches, atr, risk, targetR,
-//             exitMode: 'simple', timeExitBars, tickSize, barTime },
+//             exitMode: 'simple' | 'trail', baseMinutes, beAtR, trailAtrMult,
+//             atrPeriod, timeExitBars, tickSize, barTime },
 //     reason }
 //
 // Not investment advice. Paper-trade first.
@@ -44,7 +45,8 @@ const { DEFAULTS, mergeParams, prepare, signalAt } = require('../lib/srBreakoutS
 // disables it); the 30m config's 200 EMA needs ~4x its period to converge.
 const EMA_WARMUP_MULT = 4;
 
-// ACTIVE config — the 30m winner (the only timeframe that held up out-of-sample).
+// The 30m simple-exit variant (fixed 2R target). Kept for comparison; the
+// trail variant below is the active one.
 // Kept explicit (not spread from DEFAULTS) so what was tested cannot silently
 // drift when the engine's defaults change.
 const TUNED_30M = {
@@ -62,6 +64,30 @@ const TUNED_30M = {
   exitMode: 'simple',
   targetR: 2,
   timeExitBars: 32,
+};
+
+// ACTIVE config — the 30m asymmetric winner. The trailing exit (stop to
+// breakeven once the trade has paid 1R, then a 3x ATR trail behind each closed
+// base bar) is what produces the requested profile: losers cut at ~1R, winners
+// run to ~3x the average loss. In-sample PF 1.24, out-of-sample PF 1.42, avg
+// hold ~16.6 bars (~8h) — intraday.
+const TUNED_30M_TRAIL = {
+  baseMinutes: 30,
+  feedMinutes: 15, // 30m is aggregated from the 15m feed
+  levelSource: 'pivots',
+  entryStyle: 'retest',
+  stopMode: 'atr',
+  stopAtrMult: 1.5,
+  levelLookbackBars: 100,
+  minTouches: 2,
+  clusterAtrMult: 0.4,
+  trendEma: 200,
+  retestValidityBars: 12,
+  exitMode: 'trail',
+  targetR: 2, // unused by 'trail'; kept for the emitted bracket
+  beAtR: 1, // move the stop to breakeven once the trade has paid 1R
+  trailAtrMult: 3, // then trail 3x ATR behind each closed base bar
+  timeExitBars: 48, // base bars -> 24h hard stop
 };
 
 // The 15m config (~breakeven). Set baseMinutes/feedMinutes: 15 and
@@ -102,7 +128,7 @@ const TUNED_5M = {
   timeExitBars: 96, // in base bars; 96 x 5m = 8h
 };
 
-const TUNED = TUNED_30M;
+const TUNED = TUNED_30M_TRAIL;
 
 function num(value) {
   const parsed = Number(value);
@@ -307,8 +333,14 @@ class SrBreakoutStrategy {
         atr: round(signal.meta.atr, 2),
         risk: round(risk, 2),
         targetR: this.params.targetR,
-        // The position manager reads these to run the simple stop/target/time exit.
-        exitMode: 'simple',
+        // The position manager reads these to run the exit machine.
+        exitMode: this.params.exitMode, // 'simple' (fixed target) or 'trail'
+        baseMinutes: this.baseMinutes,
+        feedMinutes: this.feedMinutes,
+        atrPeriod: this.params.atrPeriod,
+        // Used only by the 'trail' exit: breakeven trigger + ATR trail width.
+        beAtR: this.params.beAtR,
+        trailAtrMult: this.params.trailAtrMult,
         // The position manager counts time in 15m bars; convert from base bars.
         timeExitBars: Math.round(this.params.timeExitBars * (this.baseMinutes / 15)),
         tickSize: this.tickSize,
@@ -370,5 +402,6 @@ module.exports.helpers = {
   TUNED_5M,
   TUNED_15M,
   TUNED_30M,
+  TUNED_30M_TRAIL,
   DEFAULTS,
 };
