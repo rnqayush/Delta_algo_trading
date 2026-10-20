@@ -1,0 +1,13 @@
+{
+  "entryStyle": ["close", "stop", "retest"],
+  "trendEma": [200],
+  "trendSlopeBars": [0, 12],
+  "squeezeLookback": [20, 50],
+  "maxSqueezeAtr": [4, 6, 8],
+  "minVolMult": [0, 1.2],
+  "stopMode": ["atr"],
+  "stopAtrMult": [2.0],
+  "exitMode": ["trail"],
+  "beAtR": [1.0],
+  "trailAtrMult": [2.0]
+}

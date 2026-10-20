@@ -1,0 +1,14 @@
+{
+  "levelSource": ["pivots"],
+  "entryStyle": ["retest"],
+  "stopMode": ["atr"],
+  "stopAtrMult": [1.25, 1.5, 2.0],
+  "levelLookbackBars": [100, 150],
+  "minTouches": [2, 3],
+  "clusterAtrMult": [0.4, 0.7],
+  "exitMode": ["trail"],
+  "trailAtrMult": [2.0, 3.0],
+  "beAtR": [0.75, 1.25],
+  "trendEma": [0, 200],
+  "retestValidityBars": [6, 12]
+}

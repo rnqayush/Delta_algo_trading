@@ -38,9 +38,11 @@ class TradingEngine extends EventEmitter {
     this.stats = { ticks: 0, signals: 0, executed: 0, rejected: 0, errors: 0 };
 
     // Closed-candle context handed to the strategy (refreshed on bar close).
+    // The 5m feed is only fetched when STRATEGY_CANDLES_5M > 0 (5m strategies).
+    this.candles5m = [];
     this.candles15m = [];
     this.candles1h = [];
-    this.candleCache = { fetchedAt15: 0, bar15: null, fetchedAt1h: 0, bar1h: null };
+    this.candleCache = { fetchedAt5: 0, bar5: null, fetchedAt15: 0, bar15: null, fetchedAt1h: 0, bar1h: null };
 
     // Daily risk state (trades taken, streak, realised PnL) — refreshed slowly.
     this.daily = { tradesToday: 0, consecutiveLosses: 0, realizedPnlToday: 0, halted: false };
@@ -262,8 +264,15 @@ class TradingEngine extends EventEmitter {
 
   async refreshMarketContext() {
     const now = Date.now();
+    const bar5 = Math.floor(now / (5 * 60 * 1000));
     const bar15 = Math.floor(now / (15 * 60 * 1000));
     const bar1h = Math.floor(now / (60 * 60 * 1000));
+
+    if (config.strategy.candles5mCount > 0 && (this.candleCache.bar5 !== bar5 || now - this.candleCache.fetchedAt5 > 60000)) {
+      this.candles5m = await this.fetchCandles('5m', config.strategy.candles5mCount, 5 * 60 * 1000);
+      this.candleCache.bar5 = bar5;
+      this.candleCache.fetchedAt5 = now;
+    }
 
     if (this.candleCache.bar15 !== bar15 || now - this.candleCache.fetchedAt15 > 60000) {
       this.candles15m = await this.fetchCandles('15m', config.strategy.candles15mCount, 15 * 60 * 1000);
@@ -345,6 +354,7 @@ class TradingEngine extends EventEmitter {
     return {
       ...ticker,
       ticker,
+      candles5m: this.candles5m,
       candles15m: this.candles15m,
       candles1h: this.candles1h,
       daily: this.daily,

@@ -1,0 +1,11 @@
+{
+  "levelSource": ["donchian"],
+  "levelLookbackBars": [50, 150],
+  "entryStyle": ["stop", "retest"],
+  "trendEma": [0, 200],
+  "stopMode": ["atr"],
+  "stopAtrMult": [1.5, 2.5],
+  "beAtR": [1, 3],
+  "trailAtrMult": [2.0],
+  "timeExitBars": [0]
+}
