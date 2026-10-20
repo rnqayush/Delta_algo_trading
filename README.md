@@ -73,8 +73,7 @@ delta-trading-bot/
 │   │   └── websocket/              # real-time Delta socket service
 │   ├── strategies/
 │   │   ├── strategyManager.js      # registry + start/stop
-│   │   └── strategies/
-│   │       └── exampleStrategy.js  # demo strategy (replace with yours)
+│   │   └── strategies/             # drop strategy files here (currently none)
 │   ├── models/                     # User, Order, Position, Trade, Strategy
 │   ├── middlewares/                # auth + global error handling
 │   ├── utils/                      # logger, errorHandler, helpers

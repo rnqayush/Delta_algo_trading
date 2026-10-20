@@ -81,8 +81,8 @@ const config = {
     fixedContracts: toNumber(process.env.STRATEGY_FIXED_CONTRACTS, 0),
     // A resting entry limit is cancelled after this many minutes (4 x 15m).
     entryValidityMinutes: toNumber(process.env.STRATEGY_ENTRY_VALIDITY_MINUTES, 60),
-    // How many positions a strategy may hold at once (VHR-15 needs > 1 to hit
-    // its 4+/day order target). Strategies that do not support it stay at one.
+    // How many positions a strategy may hold at once. Strategies that do not
+    // support it stay at one.
     maxConcurrentPositions: toNumber(process.env.STRATEGY_MAX_CONCURRENT_POSITIONS, 4),
     // How often the engine re-evaluates the strategy and manages positions.
     evaluateIntervalMs: toNumber(process.env.STRATEGY_EVALUATE_INTERVAL_MS, 3000),

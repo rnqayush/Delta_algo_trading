@@ -10,7 +10,6 @@ const logger = require('../../utils/logger');
 const { AppError } = require('../../utils/errorHandler');
 const { normalizeSymbol } = require('../../utils/helpers');
 const config = require('../../config/env');
-const { atr } = require('../../strategies/lib/indicators');
 const positionService = require('../delta/positionService');
 const marketService = require('../delta/marketService');
 
@@ -133,13 +132,16 @@ async function openPosition(order, quantity, price, symbol) {
 
   logger.info(`Position opened: ${position.side} ${quantity} ${symbol} @ ${price}`);
 
-  // Rest a real protective stop so the position stays protected even if this
-  // process goes down. Required lazily: orderManager already requires this module.
+  // Rest the whole bracket on the exchange: a reduce-only stop just beyond the
+  // invalidation level and a reduce-only take-profit at the fixed target, so the
+  // position is protected even if this process goes down. Required lazily:
+  // orderManager already requires this module.
   try {
     const orderManager = require('./orderManager');
     await orderManager.placeProtectiveStop(position);
+    await orderManager.placeProtectiveTarget(position);
   } catch (error) {
-    logger.error('Could not place the protective stop for the new position', error);
+    logger.error('Could not place the protective bracket for the new position', error);
   }
 
   return position;
@@ -257,13 +259,14 @@ async function applyOrder(order) {
 
   logger.info(`Position closed: ${position.side} ${symbol} @ ${price} (PnL ${realizedPnl})`);
 
-  // The position no longer needs its resting stop. If the stop itself filled it
-  // is already "filled", so this only removes stops left over by other exits.
+  // The position no longer needs its resting bracket. If the leg that filled is
+  // already "filled", this only removes whatever is left over from the other
+  // leg or from a close made some other way.
   try {
     const orderManager = require('./orderManager');
-    await orderManager.cancelProtectiveStopsForPosition(position);
+    await orderManager.cancelProtectiveOrdersForPosition(position);
   } catch (error) {
-    logger.warn(`Could not cancel the protective stop for ${symbol}: ${error.message}`);
+    logger.warn(`Could not cancel the protective orders for ${symbol}: ${error.message}`);
   }
 
   // 4. If the order was larger than the position, the excess flips direction.
@@ -276,89 +279,16 @@ async function applyOrder(order) {
 }
 
 // ---------------------------------------------------------------------------
-// Trade management (SL / TP partials / structural trail / exits)
+// Trade management (fixed bracket + time exit)
 // ---------------------------------------------------------------------------
 //
-// Driven by the trading engine on every cycle while a position is open. The
-// rules mirror §7 of the Sweep & Shift spec: 40% off at +1R, 30% at +2R, lock
-// the stop at +1R only after TP2, then trail on confirmed 15m swings.
-
-const SWING_LOOKBACK = 2; // must match the strategy's fractal width
-const STALL_CANDLES = 8;
-const STALL_BAND_R = 0.5;
-
-function lastConfirmedSwing(candles, type) {
-  const priceOf = (candle) => Number(type === 'HIGH' ? candle.high : candle.low);
-
-  for (let i = candles.length - 1 - SWING_LOOKBACK; i >= SWING_LOOKBACK; i -= 1) {
-    let isSwing = true;
-    for (let j = i - SWING_LOOKBACK; j <= i + SWING_LOOKBACK; j += 1) {
-      if (j === i) continue;
-      const other = priceOf(candles[j]);
-      if (type === 'HIGH' && other >= priceOf(candles[i])) isSwing = false;
-      if (type === 'LOW' && other <= priceOf(candles[i])) isSwing = false;
-    }
-    if (isSwing) return priceOf(candles[i]);
-  }
-
-  return null;
-}
-
-// Ratchets the stop to the last confirmed 15m swing. Never loosens it.
-function trailStop(position, candles15m) {
-  if (!Array.isArray(candles15m) || candles15m.length < SWING_LOOKBACK * 2 + 3) return false;
-
-  const swing = lastConfirmedSwing(candles15m, position.side === 'long' ? 'LOW' : 'HIGH');
-  if (swing === null) return false;
-
-  const tickSize = Number((position.plan && position.plan.tickSize) || 0);
-  const avgBody = Number((position.plan && position.plan.avgBody) || 0);
-  const buffer = Math.max(tickSize, 0.2 * avgBody);
-  if (buffer <= 0) return false;
-
-  const candidate = position.side === 'long' ? swing - buffer : swing + buffer;
-  const next =
-    position.side === 'long'
-      ? Math.max(Number(position.stopLoss), candidate)
-      : Math.min(Number(position.stopLoss), candidate);
-
-  if (Math.abs(next - Number(position.stopLoss)) < 1e-9) return false;
-
-  position.stopLoss = next;
-  return true;
-}
-
-// Closes a percentage of the position with a reduce-only market order.
-async function exitPartial(position, percent, price, reason, userId) {
-  const quantity = Math.floor(Number(position.quantity) * (percent / 100));
-  if (quantity < 1) return false;
-
-  const orderManager = require('./orderManager');
-  const closingSide = position.side === 'long' ? 'SELL' : 'BUY';
-
-  const result = await orderManager.execute(
-    {
-      action: closingSide,
-      symbol: position.symbol,
-      quantity,
-      price,
-      orderType: 'market_order',
-      strategyName: position.strategyName,
-      reason,
-      // Tells applyOrder which of the concurrent positions this exit reduces.
-      meta: { positionId: String(position._id) },
-    },
-    { userId, reduceOnly: true, fetchReferencePrice: false }
-  );
-
-  if (!result.executed) {
-    logger.warn(`Partial exit (${reason}) was not executed: ${result.reason}`);
-    return false;
-  }
-
-  logger.info(`Partial exit ${percent}% on ${position.symbol} (${reason})`);
-  return true;
-}
+// Driven by the trading engine on every cycle while a position is open.
+//
+// The strategy rests a FIXED stop and a FIXED target on the exchange as
+// reduce-only orders, so the bracket is the exit. This manager only mirrors the
+// stop locally — a paper stop_market_order never auto-fills, so paper positions
+// still need the hard stop checked here — and enforces the time stop that
+// recycles the slot.
 
 async function exitPosition(position, price, reason, userId) {
   try {
@@ -371,8 +301,7 @@ async function exitPosition(position, price, reason, userId) {
 }
 
 // Trade management entry point. Runs for EVERY open position of the symbol
-// (a strategy can hold several concurrent slots) and dispatches to the manager
-// that matches the position's exit plan.
+// (a strategy can hold several concurrent slots).
 async function manageOpenPosition({ symbol, price, candles15m = [], userId = null } = {}) {
   const positions = await getOpenPositionsBySymbol(symbol);
   if (!positions.length) return null;
@@ -380,7 +309,7 @@ async function manageOpenPosition({ symbol, price, candles15m = [], userId = nul
   let last = null;
   for (const position of positions) {
     try {
-      last = await managePosition(position, { price, candles15m, userId });
+      last = await manageSimplePosition(position, { price, candles15m, userId });
     } catch (error) {
       logger.error(`Could not manage position ${position._id} on ${position.symbol}: ${error.message}`);
       last = position;
@@ -389,16 +318,12 @@ async function manageOpenPosition({ symbol, price, candles15m = [], userId = nul
   return last;
 }
 
-// Dispatches a single position to the right exit machine.
-function managePosition(position, context) {
-  const exitMode = (position.plan && position.plan.exitMode) || 'staged';
-  if (exitMode === 'simple') return manageSimplePosition(position, context);
-  if (exitMode === 'trail') return manageTrailPosition(position, context);
-  return manageStagedPosition(position, context);
-}
-
-// Simple exit machine: one hard stop, one fixed target, one time exit. Used by
-// VHR-15, whose backtest models exactly this (full exit at the target).
+// Simple exit machine: one hard stop and one time exit.
+//
+// The fixed target is NOT checked here: it rests on the exchange as a reduce-only
+// take_profit_order (filled by Delta in live mode, by orderManager.handlePaperTick
+// in paper mode), so each leg has exactly one exit path and there is no
+// double-close race between the local loop and the resting order.
 async function manageSimplePosition(position, { price, userId }) {
   const entry = Number(position.entryPrice);
   const mark = Number(price);
@@ -406,184 +331,20 @@ async function manageSimplePosition(position, { price, userId }) {
 
   const side = position.side;
   const stop = Number(position.stopLoss);
-  const target =
-    Array.isArray(position.takeProfit) && position.takeProfit.length
-      ? Number(position.takeProfit[0].price)
-      : null;
 
   // 1. Hard stop (taker / market exit).
   if (Number.isFinite(stop) && (side === 'long' ? mark <= stop : mark >= stop)) {
     return exitPosition(position, mark, `Stop loss at ${stop}`, userId);
   }
 
-  // 2. Fixed target (full exit).
-  if (Number.isFinite(target) && target > 0 && (side === 'long' ? mark >= target : mark <= target)) {
-    return exitPosition(position, mark, `Target at ${target}`, userId);
-  }
-
-  // 3. Time exit — the backtest's hard time stop (e.g. 64 x 15m = 16h).
+  // 2. Time exit — the backtest's hard time stop (e.g. 32 x 15m = 8h). It frees
+  // the slot so the strategy can take its next setup within the same day.
   const timeExitBars = Number((position.plan && position.plan.timeExitBars) || 0);
   if (timeExitBars > 0) {
     const bars = Math.max(0, Math.floor((Date.now() - new Date(position.openedAt).getTime()) / (15 * 60 * 1000)));
     if (bars >= timeExitBars) {
       return exitPosition(position, mark, `Time exit after ${bars} bars`, userId);
     }
-  }
-
-  return position;
-}
-
-// ATR "breakeven then trail" exit — the live mirror of the backtest's `trail`
-// mode. Once a trade has paid `beAtR` R the stop moves to breakeven, then it
-// ratchets to `trailAtrMult` x ATR behind each CLOSED base bar's close and never
-// loosens. There is no fixed target: winners are only cut by the trail or the
-// time stop, which is what makes the profile asymmetric (losers ~1R, winners
-// many R). The ATR is recomputed from the same resampled bars the strategy
-// trades, so live == tested.
-async function manageTrailPosition(position, { price, candles15m = [], userId }) {
-  const entry = Number(position.entryPrice);
-  const mark = Number(price);
-  if (!mark || !entry) return position;
-
-  const risk = Math.abs(entry - Number(position.initialStopLoss));
-  if (!risk) return position;
-
-  const side = position.side;
-  const plan = position.plan || {};
-
-  // 1. Hard stop against the live mark, using the current (possibly trailed) stop.
-  const stop = Number(position.stopLoss);
-  if (Number.isFinite(stop) && (side === 'long' ? mark <= stop : mark >= stop)) {
-    return exitPosition(position, mark, `Stop loss at ${stop}`, userId);
-  }
-
-  // 2. Breakeven + ATR trail, advanced on the last CLOSED base bar only.
-  const { normalizeCandles, resampleBars } = require('../../strategies/strategies/srBreakoutStrategy').helpers;
-  const baseMinutes = Number(plan.baseMinutes) || 15;
-  const feedMinutes = Number(plan.feedMinutes) || baseMinutes;
-  const feed = normalizeCandles(candles15m);
-  const lastFeedTime = feed.length ? feed[feed.length - 1].time : 0;
-  const bars = feed.length
-    ? resampleBars(feed, baseMinutes, lastFeedTime + feedMinutes * 60 * 1000)
-    : [];
-
-  if (bars.length) {
-    const bar = bars[bars.length - 1];
-    const atrNow = atr(bars, Number(plan.atrPeriod) || 14).pop();
-    if (atrNow > 0) {
-      const dir = side === 'long' ? 1 : -1;
-      const unrealisedR = (dir * (bar.close - entry)) / risk;
-      let nextStop = Number(position.stopLoss);
-      let planChanged = false;
-      let stopMoved = false;
-
-      if (!plan.beApplied && unrealisedR >= Number(plan.beAtR ?? 1)) {
-        nextStop = entry; // move to breakeven
-        plan.beApplied = true;
-        position.markModified('plan');
-        planChanged = true;
-      }
-      if (plan.beApplied) {
-        const trail =
-          side === 'long'
-            ? bar.close - Number(plan.trailAtrMult ?? 1.5) * atrNow
-            : bar.close + Number(plan.trailAtrMult ?? 1.5) * atrNow;
-        nextStop = side === 'long' ? Math.max(nextStop, trail) : Math.min(nextStop, trail);
-      }
-
-      const rounded = Math.round(nextStop * 100) / 100;
-      if (rounded !== Number(position.stopLoss)) {
-        position.stopLoss = rounded;
-        stopMoved = true;
-      }
-
-      if (planChanged || stopMoved) {
-        await position.save();
-        if (stopMoved) {
-          const orderManager = require('./orderManager');
-          await orderManager.moveProtectiveStop(position.symbol, position.stopLoss);
-        }
-      }
-    }
-  }
-
-  // 3. Time exit — the backtest's hard time stop (48 x 30m = 24h, in 15m bars).
-  const timeExitBars = Number(plan.timeExitBars || 0);
-  if (timeExitBars > 0) {
-    const elapsed = Math.max(0, Math.floor((Date.now() - new Date(position.openedAt).getTime()) / (15 * 60 * 1000)));
-    if (elapsed >= timeExitBars) {
-      return exitPosition(position, mark, `Time exit after ${elapsed} bars`, userId);
-    }
-  }
-
-  return position;
-}
-
-// Staged exit machine (Sweep & Shift): hard stop, 40% at +1R, 30% at +2R with
-// the stop locked to +1R, then a structural trail on the runner. Returns the
-// (possibly updated) position.
-async function manageStagedPosition(position, { price, candles15m = [], userId }) {
-  const entry = Number(position.entryPrice);
-  const mark = Number(price);
-  if (!mark) return position;
-
-  // Only positions opened with a plan are managed here.
-  if (!position.initialStopLoss || !entry) return position;
-
-  const risk = Math.abs(entry - Number(position.initialStopLoss));
-  if (!risk) return position;
-
-  const side = position.side;
-  const reached = (r) => (side === 'long' ? mark >= entry + r * risk : mark <= entry - r * risk);
-  const bars = Math.max(0, Math.floor((Date.now() - new Date(position.openedAt).getTime()) / (15 * 60 * 1000)));
-
-  // 1. Hard stop.
-  const stopHit = side === 'long' ? mark <= Number(position.stopLoss) : mark >= Number(position.stopLoss);
-  if (stopHit) return exitPosition(position, mark, `Stop loss at ${position.stopLoss}`, userId);
-
-  // 2. TP1 — close 40% at +1R.
-  if (position.stage === 'OPEN' && reached(1)) {
-    if (await exitPartial(position, 40, mark, 'TP1 (+1R)', userId)) {
-      position.stage = 'PARTIAL_1';
-      await position.save();
-    }
-    return position;
-  }
-
-  // 3. TP2 — close 30% at +2R, then lock the stop at +1R.
-  if (position.stage === 'PARTIAL_1' && reached(2)) {
-    if (await exitPartial(position, 30, mark, 'TP2 (+2R)', userId)) {
-      position.stage = 'PARTIAL_2';
-      position.stopLoss = side === 'long' ? entry + risk : entry - risk;
-      await position.save();
-
-      const orderManager = require('./orderManager');
-      await orderManager.moveProtectiveStop(position.symbol, position.stopLoss);
-    }
-    return position;
-  }
-
-  // 4. Structural trail (only after TP2 has locked +1R in).
-  if (position.stage === 'PARTIAL_2' || position.stage === 'RUNNER') {
-    position.stage = 'RUNNER';
-    if (trailStop(position, candles15m)) {
-      await position.save();
-      const orderManager = require('./orderManager');
-      await orderManager.moveProtectiveStop(position.symbol, position.stopLoss);
-    }
-  }
-
-  // 5. Structure failure — two consecutive closes back beyond BOS_LEVEL.
-  const bosLevel = Number((position.plan && position.plan.bosLevel) || 0);
-  const last2 = candles15m.slice(-2);
-  if (bosLevel > 0 && last2.length === 2) {
-    const failed = last2.every((c) => (side === 'long' ? Number(c.close) < bosLevel : Number(c.close) > bosLevel));
-    if (failed) return exitPosition(position, mark, 'Structure failure', userId);
-  }
-
-  // 6. Stall — 8 candles going nowhere.
-  if (bars >= STALL_CANDLES && mark > entry - STALL_BAND_R * risk && mark < entry + STALL_BAND_R * risk) {
-    return exitPosition(position, mark, 'Stall exit', userId);
   }
 
   return position;

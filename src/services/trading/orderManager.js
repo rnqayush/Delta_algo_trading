@@ -282,38 +282,61 @@ async function cancelExpiredOrders(symbol) {
   return cancelled;
 }
 
-// Resting protective stop for an open position.
+// Resting protective orders for an open position: the stop and the take-profit.
 //
-// A protective stop is a reduce-only stop_market_order sitting on the opposite
-// side of the position. It is a *safety net*: it lives on Delta, so the position
-// stays protected even if this process is down when the stop is reached, and it
-// is what moveProtectiveStop keeps in sync with the trailed level.
+// Both are reduce-only orders sitting on the OPPOSITE side of the position and
+// both rest on Delta, so the whole bracket survives this process dying. The stop
+// is a stop_market_order, the target a take_profit_order; moveProtectiveStop
+// keeps the stop in sync with any trailed level.
 //
-// It is deliberately NOT run through execute(): it is not a new entry, so it
-// must skip the risk checks, the concurrency gate and the duplicate guard.
-async function placeProtectiveStop(position) {
+// They are deliberately NOT run through execute(): they are not new entries, so
+// they must skip the risk checks, the concurrency gate and the duplicate guard.
+const PROTECTIVE_KINDS = {
+  stop: {
+    purpose: 'stop',
+    orderType: 'stop_market_order',
+    price: (position) => Number(position.initialStopLoss ?? position.stopLoss),
+    storesStopLoss: true,
+    reason: 'Protective stop for the open position',
+  },
+  target: {
+    purpose: 'target',
+    orderType: 'take_profit_order',
+    price: (position) =>
+      Array.isArray(position.takeProfit) && position.takeProfit.length
+        ? Number(position.takeProfit[0].price)
+        : null,
+    storesStopLoss: false,
+    reason: 'Protective take-profit for the open position',
+  },
+};
+
+async function placeProtectiveOrder(position, kind) {
   if (!position) return null;
 
-  const symbol = normalizeSymbol(position.symbol);
-  const stopPrice = Number(position.initialStopLoss ?? position.stopLoss);
-  const quantity = Math.abs(Number(position.quantity));
-  if (!symbol || !Number.isFinite(stopPrice) || stopPrice <= 0 || !quantity) return null;
+  const spec = PROTECTIVE_KINDS[kind];
+  if (!spec) return null;
 
-  // A protective stop always sits on the opposite side of the position.
+  const symbol = normalizeSymbol(position.symbol);
+  const triggerPrice = spec.price(position);
+  const quantity = Math.abs(Number(position.quantity));
+  if (!symbol || !Number.isFinite(triggerPrice) || triggerPrice <= 0 || !quantity) return null;
+
+  // A protective order always sits on the opposite side of the position.
   const side = position.side === 'long' ? 'sell' : 'buy';
   const positionId = String(position._id);
   const isLive = position.mode === 'live';
 
-  // Never stack a second stop for the same position.
+  // Never stack a second order of the same kind for the same position.
   const existing = await Order.findOne({
     symbol,
-    purpose: 'stop',
+    purpose: spec.purpose,
     status: { $in: OPEN_ORDER_STATUSES },
     'meta.positionId': positionId,
   });
   if (existing) return existing;
 
-  // Live orders need the product id and a tick-aligned stop price.
+  // Live orders need the product id and a tick-aligned trigger price.
   let productId = position.productId || null;
   let tickSize = null;
   if (isLive) {
@@ -330,28 +353,28 @@ async function placeProtectiveStop(position) {
     symbol,
     productId,
     side,
-    orderType: 'stop_market_order',
+    orderType: spec.orderType,
     quantity,
-    price: stopPrice,
+    price: triggerPrice,
     status: isLive ? 'pending' : 'open',
     mode: position.mode,
-    purpose: 'stop',
+    purpose: spec.purpose,
     reduceOnly: true,
-    stopLoss: stopPrice,
-    // Links the stop back to the slot it protects so a fill closes the right
+    stopLoss: spec.storesStopLoss ? triggerPrice : null,
+    // Links the order back to the slot it protects so a fill closes the right
     // position (see positionManager.applyOrder).
     meta: { positionId },
     strategyName: position.strategyName || 'manual',
-    reason: 'Protective stop for the open position',
+    reason: spec.reason,
   });
 
   if (!isLive) {
-    logger.info(`Paper protective stop resting at ${stopPrice} for ${symbol}`);
+    logger.info(`Paper protective ${kind} resting at ${triggerPrice} for ${symbol}`);
     return order;
   }
 
   if (!config.trading.isLive) {
-    logger.warn(`Protective stop for ${symbol} was not placed — live trading is disabled`);
+    logger.warn(`Protective ${kind} for ${symbol} was not placed — live trading is disabled`);
     return order;
   }
 
@@ -361,8 +384,8 @@ async function placeProtectiveStop(position) {
       productId,
       size: quantity,
       side,
-      orderType: 'stop_market_order',
-      stopPrice: roundToTick(stopPrice, tickSize),
+      orderType: spec.orderType,
+      stopPrice: roundToTick(triggerPrice, tickSize),
       reduceOnly: true,
       clientOrderId,
     });
@@ -372,15 +395,25 @@ async function placeProtectiveStop(position) {
     order.status = mapDeltaOrderStatus(response.state);
     await order.save();
 
-    logger.info(`Protective stop placed for ${symbol} at ${stopPrice} (delta id ${order.deltaOrderId})`);
+    logger.info(`Protective ${kind} placed for ${symbol} at ${triggerPrice} (delta id ${order.deltaOrderId})`);
   } catch (error) {
     order.status = 'rejected';
     order.errorMessage = error.message;
     await order.save();
-    logger.error(`Could not place the protective stop for ${symbol}: ${error.message}`);
+    logger.error(`Could not place the protective ${kind} for ${symbol}: ${error.message}`);
   }
 
   return order;
+}
+
+// A reduce-only stop_market_order resting just beyond the invalidation level.
+async function placeProtectiveStop(position) {
+  return placeProtectiveOrder(position, 'stop');
+}
+
+// A reduce-only take_profit_order resting at the position's fixed target.
+async function placeProtectiveTarget(position) {
+  return placeProtectiveOrder(position, 'target');
 }
 
 // Moves the protective stop that belongs to an open position. Paper positions
@@ -417,36 +450,38 @@ async function moveProtectiveStop(symbol, stopLoss) {
   return stopOrder;
 }
 
-// Cancels the resting protective stops that belong to a position. Called when
-// the position is closed by something other than the stop itself, so nothing is
-// left resting on the exchange.
-async function cancelProtectiveStopsForPosition(position) {
+// Cancels the resting protective orders (both the stop and the take-profit)
+// that belong to a position. Called when the position is closed by something
+// other than the bracket itself, so nothing is left resting on the exchange.
+async function cancelProtectiveOrdersForPosition(position) {
   if (!position) return 0;
 
-  const stops = await Order.find({
+  const orders = await Order.find({
     symbol: normalizeSymbol(position.symbol),
-    purpose: 'stop',
+    purpose: { $in: ['stop', 'target'] },
     status: { $in: OPEN_ORDER_STATUSES },
     'meta.positionId': String(position._id),
   });
 
   let cancelled = 0;
-  for (const stop of stops) {
-    if (stop.mode === 'live' && stop.deltaOrderId) {
+  for (const order of orders) {
+    if (order.mode === 'live' && order.deltaOrderId) {
       if (!config.trading.isLive) {
-        logger.warn(`Protective stop for ${position.symbol} was not cancelled — live trading is disabled`);
+        logger.warn(
+          `Protective ${order.purpose} for ${position.symbol} was not cancelled — live trading is disabled`
+        );
         continue;
       }
       try {
-        await orderService.cancelOrder({ orderId: stop.deltaOrderId, productId: stop.productId });
+        await orderService.cancelOrder({ orderId: order.deltaOrderId, productId: order.productId });
       } catch (error) {
-        logger.warn(`Could not cancel the protective stop ${stop._id}: ${error.message}`);
+        logger.warn(`Could not cancel the protective ${order.purpose} ${order._id}: ${error.message}`);
         continue;
       }
     }
 
-    stop.status = 'cancelled';
-    await stop.save();
+    order.status = 'cancelled';
+    await order.save();
     cancelled += 1;
   }
 
@@ -722,6 +757,7 @@ module.exports = {
   handlePaperTick,
   cancelExpiredOrders,
   placeProtectiveStop,
+  placeProtectiveTarget,
   moveProtectiveStop,
-  cancelProtectiveStopsForPosition,
+  cancelProtectiveOrdersForPosition,
 };

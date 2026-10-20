@@ -1,9 +1,0 @@
-{
-  "entryStyle": ["retest"],
-  "stopMode": ["atr"],
-  "stopAtrMult": [1.0, 2.0, 3.0],
-  "levelLookbackBars": [120, 240],
-  "exitMode": ["simple", "trail"],
-  "targetR": [2.0, 3.0],
-  "trendEma": [0, 200]
-}
