@@ -9,6 +9,7 @@ const Trade = require('../../models/Trade');
 const logger = require('../../utils/logger');
 const { AppError } = require('../../utils/errorHandler');
 const { normalizeSymbol } = require('../../utils/helpers');
+const { atr } = require('../../utils/indicators');
 const config = require('../../config/env');
 const positionService = require('../delta/positionService');
 const marketService = require('../delta/marketService');
@@ -45,11 +46,56 @@ async function getPositionBySymbol(symbol) {
 
 // Every open position for a symbol, oldest first. A symbol can hold several
 // when a strategy uses concurrent slots (see orderManager.concurrencyGate).
+// This reads the LOCAL book, which is only a record — use
+// getExchangeOpenPositions() for anything that decides whether a trade may be
+// placed.
 async function getOpenPositionsBySymbol(symbol) {
   const target = normalizeSymbol(symbol);
   if (!target) return [];
 
   return Position.find({ symbol: target, status: 'open' }).sort({ createdAt: 1 });
+}
+
+// What Delta Exchange ACTUALLY holds for `symbol` right now.
+//
+// Every placement-time decision must ask the exchange, never the local book:
+// a position opened or closed by hand (or by a bracket firing while the bot was
+// down) leaves the database stale, and a stale book either blocks a legitimate
+// entry or allows a duplicate one. Rows are shaped like local positions so the
+// callers (concurrency gate, risk context, strategy state) stay unchanged.
+//
+// Paper mode has no exchange to ask, so the local book is the truth there.
+async function getExchangeOpenPositions(symbol) {
+  const target = normalizeSymbol(symbol);
+  if (!target) return [];
+
+  if (config.trading.mode !== 'live') {
+    return getOpenPositionsBySymbol(target);
+  }
+
+  const product = await marketService.getProduct(target);
+  const positions = await positionService.getOpenPositions({ productId: product.id });
+
+  return positions
+    .filter((position) => Number(position.product_id) === Number(product.id))
+    .map((position) => {
+      const size = Number(position.size || 0);
+      return {
+        symbol: target,
+        productId: Number(position.product_id),
+        side: size > 0 ? 'long' : 'short',
+        quantity: Math.abs(size),
+        entryPrice: Number(position.entry_price || 0),
+        slot: 0,
+        source: 'delta',
+      };
+    });
+}
+
+// True when Delta is holding a non-zero position for `symbol`.
+async function hasExchangeOpenPosition(symbol) {
+  const positions = await getExchangeOpenPositions(symbol);
+  return positions.length > 0;
 }
 
 // The open Trade that belongs to a position. With concurrent slots there can be
@@ -132,16 +178,19 @@ async function openPosition(order, quantity, price, symbol) {
 
   logger.info(`Position opened: ${position.side} ${quantity} ${symbol} @ ${price}`);
 
-  // Rest the whole bracket on the exchange: a reduce-only stop just beyond the
-  // invalidation level and a reduce-only take-profit at the fixed target, so the
-  // position is protected even if this process goes down. Required lazily:
-  // orderManager already requires this module.
-  try {
-    const orderManager = require('./orderManager');
-    await orderManager.placeProtectiveStop(position);
-    await orderManager.placeProtectiveTarget(position);
-  } catch (error) {
-    logger.error('Could not place the protective bracket for the new position', error);
+  // A position whose entry carried an attached bracket is already protected by
+  // Delta — the fixed reduce-only stop and target were created by the entry call
+  // itself (see orderManager.executeLiveOrder), so the manager must not place a
+  // second set. Everything else (paper, or a signal with no bracket) still gets
+  // the local bracket. Required lazily: orderManager already requires this module.
+  if (!position.plan.bracketOnExchange) {
+    try {
+      const orderManager = require('./orderManager');
+      await orderManager.placeProtectiveStop(position);
+      await orderManager.placeProtectiveTarget(position);
+    } catch (error) {
+      logger.error('Could not place the protective bracket for the new position', error);
+    }
   }
 
   return position;
@@ -302,14 +351,14 @@ async function exitPosition(position, price, reason, userId) {
 
 // Trade management entry point. Runs for EVERY open position of the symbol
 // (a strategy can hold several concurrent slots).
-async function manageOpenPosition({ symbol, price, candles15m = [], userId = null } = {}) {
+async function manageOpenPosition({ symbol, price, candles1m = [], candles15m = [], userId = null } = {}) {
   const positions = await getOpenPositionsBySymbol(symbol);
   if (!positions.length) return null;
 
   let last = null;
   for (const position of positions) {
     try {
-      last = await manageSimplePosition(position, { price, candles15m, userId });
+      last = await manageSimplePosition(position, { price, candles1m, candles15m, userId });
     } catch (error) {
       logger.error(`Could not manage position ${position._id} on ${position.symbol}: ${error.message}`);
       last = position;
@@ -318,18 +367,86 @@ async function manageOpenPosition({ symbol, price, candles15m = [], userId = nul
   return last;
 }
 
-// Simple exit machine: one hard stop and one time exit.
+// Advances an ATR trailing stop (and the breakeven move) for one position.
+// Only positions whose plan asks for a trail (plan.trailAtrMult > 0) are
+// touched. Mirrors the backtest: the trail is anchored to the previous candle's
+// close, breakeven is armed once the trade is plan.beAtR x risk in profit, and
+// the stop only ever moves in the position's favour.
+async function trailStop(position, candles) {
+  const plan = position.plan || {};
+  const trailAtrMult = Number(plan.trailAtrMult) || 0;
+  if (!(trailAtrMult > 0)) return position;
+
+  const entry = Number(position.entryPrice);
+  const atrValue = atr(candles, Number(plan.atrPeriod) || 14).pop();
+  if (!(entry > 0) || !(atrValue > 0)) return position;
+
+  const dir = position.side === 'long' ? 1 : -1;
+  const risk = Math.abs(entry - Number(position.initialStopLoss ?? position.stopLoss));
+  const currentStop = Number(position.stopLoss);
+
+  // Anchor the trail to the previous closed candle (the current one is still forming).
+  const anchor = candles.length >= 2 ? Number(candles[candles.length - 2].close) : entry;
+  let peak = Number(plan.peak);
+  if (!Number.isFinite(peak)) peak = entry;
+  peak = dir === 1 ? Math.max(peak, anchor) : Math.min(peak, anchor);
+
+  const candidates = [];
+  if (Number.isFinite(currentStop)) candidates.push(currentStop);
+  if (Number(plan.beAtR) > 0 && risk > 0 && (peak - entry) * dir >= Number(plan.beAtR) * risk) {
+    candidates.push(entry); // breakeven
+  }
+  candidates.push(peak - dir * trailAtrMult * atrValue);
+  const nextStop = dir === 1 ? Math.max(...candidates) : Math.min(...candidates);
+
+  position.plan = { ...plan, peak };
+  position.markModified('plan');
+
+  const improved = Number.isFinite(nextStop) && (!Number.isFinite(currentStop) || (dir === 1 ? nextStop > currentStop : nextStop < currentStop));
+  if (improved) {
+    position.stopLoss = nextStop;
+    // Keep the resting exchange stop in sync (paper: the order document; live:
+    // cancel + re-place, because Delta has no modify endpoint).
+    try {
+      const orderManager = require('./orderManager');
+      await orderManager.moveProtectiveStop(position.symbol, nextStop);
+    } catch (error) {
+      logger.warn(`Could not move the protective stop for ${position.symbol}: ${error.message}`);
+    }
+  }
+
+  await position.save();
+  return position;
+}
+
+// Simple exit machine: a hard stop, an optional ATR trailing stop and a time
+// exit.
 //
 // The fixed target is NOT checked here: it rests on the exchange as a reduce-only
 // take_profit_order (filled by Delta in live mode, by orderManager.handlePaperTick
 // in paper mode), so each leg has exactly one exit path and there is no
 // double-close race between the local loop and the resting order.
-async function manageSimplePosition(position, { price, userId }) {
+async function manageSimplePosition(position, { price, candles1m = [], candles15m = [], userId }) {
   const entry = Number(position.entryPrice);
   const mark = Number(price);
   if (!mark || !entry) return position;
 
+  // A position whose bracket lives on Delta (the entry carried an attached
+  // fixed stop + target) is exit-managed by the exchange. Running the local
+  // loop as well would put a second, competing exit on the same position: the
+  // local hard stop can fire on the same tick as Delta's stop and close twice.
+  if (position.plan && position.plan.bracketOnExchange) return position;
+
   const side = position.side;
+
+  // 0. Advance the trailing stop before the stop is tested, so a stop that was
+  //    just trailed into the money can exit on this very tick.
+  const plan = position.plan || {};
+  if (Number(plan.trailAtrMult) > 0) {
+    const candles = plan.atrTimeframe === '15m' ? candles15m : candles1m;
+    await trailStop(position, candles);
+  }
+
   const stop = Number(position.stopLoss);
 
   // 1. Hard stop (taker / market exit).
@@ -401,6 +518,7 @@ async function syncPositions() {
   }
 
   const remotePositions = await positionService.getOpenPositions();
+  const heldOnDelta = new Set();
 
   for (const remote of remotePositions) {
     try {
@@ -409,6 +527,7 @@ async function syncPositions() {
       const size = Number(remote.size || 0);
       if (!symbol || size === 0) continue;
 
+      heldOnDelta.add(symbol);
       const side = size > 0 ? 'long' : 'short';
       const entryPrice = Number(remote.entry_price || 0);
 
@@ -431,6 +550,29 @@ async function syncPositions() {
     } catch (error) {
       logger.warn(`Could not sync a Delta position: ${error.message}`);
     }
+  }
+
+  // Delta is the source of truth. A position still marked open locally but gone
+  // from Delta was closed outside this process — by hand, or by a bracket that
+  // fired while the bot was down. It has to be cleared, otherwise the strategy
+  // stands down forever waiting for a position that no longer exists.
+  const ghosts = await Position.find({
+    status: 'open',
+    mode: 'live',
+    symbol: { $nin: [...heldOnDelta] },
+  });
+
+  for (const ghost of ghosts) {
+    ghost.quantity = 0;
+    ghost.status = 'closed';
+    ghost.closedAt = new Date();
+    ghost.lastSyncedAt = new Date();
+    await ghost.save();
+
+    logger.warn(
+      `Cleared a local position Delta no longer holds: ${ghost.symbol} ${ghost.side} — ` +
+        'it was closed outside the bot, so no PnL was booked for it'
+    );
   }
 
   return getPositions({ status: 'open' });
@@ -488,6 +630,8 @@ module.exports = {
   getPositions,
   getPositionBySymbol,
   getOpenPositionsBySymbol,
+  getExchangeOpenPositions,
+  hasExchangeOpenPosition,
   updatePositionPrice,
   applyOrder,
   manageOpenPosition,

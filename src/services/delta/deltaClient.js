@@ -22,7 +22,13 @@ function extractDeltaError(data) {
   if (!data) return 'Unknown Delta Exchange error';
   if (typeof data === 'string') return data;
   if (typeof data.error === 'string') return data.error;
-  if (data.error && data.error.code) return data.error.context?.error || data.error.code;
+  if (data.error && data.error.code) {
+    // "bad_schema" on its own says nothing useful — Delta puts the offending
+    // field in error.context, so keep it attached to the message.
+    if (data.error.context?.error) return data.error.context.error;
+    if (data.error.context) return `${data.error.code} (${JSON.stringify(data.error.context)})`;
+    return data.error.code;
+  }
   if (data.message) return data.message;
   return 'Delta Exchange request failed';
 }

@@ -18,7 +18,19 @@ const VALID_ORDER_TYPES = [
   'take_profit_order',
 ];
 
-function validateOrderInput({ productId, size, side, orderType, limitPrice }) {
+// Delta does NOT accept "stop_market_order" / "stop_limit_order" /
+// "take_profit_order" in `order_type` — the API only knows `market_order` and
+// `limit_order` there. A stop order is a normal order PLUS a `stop_order_type`
+// of "stop_loss_order" (a stop) or "take_profit_order" (a target) and a
+// `stop_price` trigger. Sending the wrong shape comes back as "bad_schema",
+// which is what silently killed every protective stop/target.
+const STOP_ORDER_TYPES = {
+  stop_market_order: 'stop_loss_order',
+  stop_limit_order: 'stop_loss_order',
+  take_profit_order: 'take_profit_order',
+};
+
+function validateOrderInput({ productId, size, side, orderType, limitPrice, stopPrice }) {
   if (!productId) throw new AppError('productId is required to place an order', 400);
   if (!Number.isFinite(Number(size)) || Number(size) <= 0) {
     throw new AppError('Order size must be a positive number', 400);
@@ -29,8 +41,11 @@ function validateOrderInput({ productId, size, side, orderType, limitPrice }) {
   if (!VALID_ORDER_TYPES.includes(orderType)) {
     throw new AppError(`Unsupported order type: ${orderType}`, 400);
   }
-  if (orderType === 'limit_order' && !limitPrice) {
+  if ((orderType === 'limit_order' || orderType === 'stop_limit_order') && !limitPrice) {
     throw new AppError('limitPrice is required for a limit order', 400);
+  }
+  if (STOP_ORDER_TYPES[orderType] && !stopPrice) {
+    throw new AppError('stopPrice is required for a stop order', 400);
   }
 }
 
@@ -46,6 +61,9 @@ async function placeOrder({
   timeInForce = 'gtc',
   reduceOnly = false,
   clientOrderId,
+  bracketStopLossPrice,
+  bracketTakeProfitPrice,
+  bracketStopTriggerMethod,
 }) {
   const order = {
     productId,
@@ -55,22 +73,35 @@ async function placeOrder({
     limitPrice,
   };
 
-  validateOrderInput(order);
+  validateOrderInput({ ...order, stopPrice });
+
+  const isStop = Boolean(STOP_ORDER_TYPES[orderType]);
+  // A stop_limit_order stays a limit order once triggered; a stop_market_order
+  // (and a take-profit) becomes a market order.
+  const isLimitBase = orderType === 'limit_order' || orderType === 'stop_limit_order';
 
   const body = {
     product_id: Number(productId),
     size: Number(size),
     side: order.side,
-    order_type: orderType,
+    order_type: isStop ? (isLimitBase ? 'limit_order' : 'market_order') : orderType,
     client_order_id: clientOrderId || generateClientOrderId(),
   };
 
-  if (orderType === 'limit_order') {
+  if (isLimitBase) {
     body.limit_price = String(limitPrice);
     body.time_in_force = timeInForce;
   }
+  if (isStop) body.stop_order_type = STOP_ORDER_TYPES[orderType];
   if (stopPrice) body.stop_price = String(stopPrice);
   if (reduceOnly) body.reduce_only = true;
+
+  // An ATTACHED bracket: the same call that creates the entry also rests a fixed
+  // stop and a fixed target on Delta, so the trade is never unprotected and
+  // nothing has to be placed or moved afterwards.
+  if (bracketStopLossPrice) body.bracket_stop_loss_price = String(bracketStopLossPrice);
+  if (bracketTakeProfitPrice) body.bracket_take_profit_price = String(bracketTakeProfitPrice);
+  if (bracketStopTriggerMethod) body.bracket_stop_trigger_method = bracketStopTriggerMethod;
 
   const response = await deltaClient.post(deltaConfig.endpoints.orders, body);
   return extractResult(response);

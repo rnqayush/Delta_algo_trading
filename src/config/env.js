@@ -67,6 +67,9 @@ const config = {
     equity: toNumber(process.env.STRATEGY_EQUITY, 1000),
     // Fraction of equity risked per trade (0.005 = 0.5%). Hard-capped below.
     riskPercent: toNumber(process.env.STRATEGY_RISK_PERCENT, 0.005),
+    // Fraction of equity the strategy targets on a winner. Independent of
+    // riskPercent, so the R:R can be either way round (e.g. 0.05 / 0.01).
+    rewardPercent: toNumber(process.env.STRATEGY_REWARD_PERCENT, 0.01),
     maxRiskPercent: toNumber(process.env.STRATEGY_MAX_RISK_PERCENT, 0.01),
     // Max notional per trade as a multiple of equity (3x equity by default).
     // On a leveraged account this doubles as the exposure ceiling: the strategy
@@ -90,6 +93,8 @@ const config = {
     // 5m feed for strategies whose base timeframe is 5m. 0 disables the extra
     // request, so 15m/30m configs never pay for a series they do not use.
     candles5mCount: toNumber(process.env.STRATEGY_CANDLES_5M, 0),
+    // 1m feed for strategies whose base timeframe is 1m. 0 disables the request.
+    candles1mCount: toNumber(process.env.STRATEGY_CANDLES_1M, 0),
     candles1hCount: toNumber(process.env.STRATEGY_CANDLES_1H, 100),
   },
 };

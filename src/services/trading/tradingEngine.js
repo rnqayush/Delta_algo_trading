@@ -38,11 +38,21 @@ class TradingEngine extends EventEmitter {
     this.stats = { ticks: 0, signals: 0, executed: 0, rejected: 0, errors: 0 };
 
     // Closed-candle context handed to the strategy (refreshed on bar close).
-    // The 5m feed is only fetched when STRATEGY_CANDLES_5M > 0 (5m strategies).
+    // The 5m/1m feeds are only fetched when their count is > 0 (5m/1m strategies).
+    this.candles1m = [];
     this.candles5m = [];
     this.candles15m = [];
     this.candles1h = [];
-    this.candleCache = { fetchedAt5: 0, bar5: null, fetchedAt15: 0, bar15: null, fetchedAt1h: 0, bar1h: null };
+    this.candleCache = {
+      fetchedAt1: 0,
+      bar1: null,
+      fetchedAt5: 0,
+      bar5: null,
+      fetchedAt15: 0,
+      bar15: null,
+      fetchedAt1h: 0,
+      bar1h: null,
+    };
 
     // Daily risk state (trades taken, streak, realised PnL) — refreshed slowly.
     this.daily = { tradesToday: 0, consecutiveLosses: 0, realizedPnlToday: 0, halted: false };
@@ -68,6 +78,14 @@ class TradingEngine extends EventEmitter {
 
     // Give the strategy the exchange facts it needs (tick size, contract value).
     await this.applyProductSettings();
+
+    // Reconcile the local book with Delta before the first signal: a position
+    // closed while the bot was down would otherwise block the strategy for good.
+    try {
+      await positionManager.syncPositions();
+    } catch (error) {
+      logger.warn(`Could not reconcile positions with Delta on startup: ${error.message}`);
+    }
 
     logger.info(
       `Trading engine started: strategy=${this.strategy.getName()} symbol=${this.symbol} source=${this.marketSource}`
@@ -165,6 +183,7 @@ class TradingEngine extends EventEmitter {
       await positionManager.manageOpenPosition({
         symbol: this.symbol,
         price: ticker.price,
+        candles1m: this.candles1m,
         candles15m: this.candles15m,
         userId: this.options.userId || null,
       });
@@ -236,6 +255,9 @@ class TradingEngine extends EventEmitter {
       }
       if (strategy.equity !== undefined) strategy.equity = Number(config.strategy.equity) || strategy.equity;
       if (strategy.riskPercent !== undefined) strategy.riskPercent = Number(config.strategy.riskPercent);
+      if (strategy.rewardPercent !== undefined) {
+        strategy.rewardPercent = Number(config.strategy.rewardPercent);
+      }
       if (strategy.maxRiskPercent !== undefined) strategy.maxRiskPercent = Number(config.strategy.maxRiskPercent);
       if (strategy.maxNotionalEquity !== undefined) {
         strategy.maxNotionalEquity = Number(config.strategy.maxNotionalEquity);
@@ -264,9 +286,18 @@ class TradingEngine extends EventEmitter {
 
   async refreshMarketContext() {
     const now = Date.now();
+    const bar1 = Math.floor(now / (60 * 1000));
     const bar5 = Math.floor(now / (5 * 60 * 1000));
     const bar15 = Math.floor(now / (15 * 60 * 1000));
     const bar1h = Math.floor(now / (60 * 60 * 1000));
+
+    // The 1m context must follow the 1-minute bar, so it refreshes on every new
+    // minute (5s grace) rather than the 60s used by the slower timeframes.
+    if (config.strategy.candles1mCount > 0 && (this.candleCache.bar1 !== bar1 || now - this.candleCache.fetchedAt1 > 15000)) {
+      this.candles1m = await this.fetchCandles('1m', config.strategy.candles1mCount, 60 * 1000);
+      this.candleCache.bar1 = bar1;
+      this.candleCache.fetchedAt1 = now;
+    }
 
     if (config.strategy.candles5mCount > 0 && (this.candleCache.bar5 !== bar5 || now - this.candleCache.fetchedAt5 > 60000)) {
       this.candles5m = await this.fetchCandles('5m', config.strategy.candles5mCount, 5 * 60 * 1000);
@@ -354,6 +385,7 @@ class TradingEngine extends EventEmitter {
     return {
       ...ticker,
       ticker,
+      candles1m: this.candles1m,
       candles5m: this.candles5m,
       candles15m: this.candles15m,
       candles1h: this.candles1h,
@@ -361,11 +393,11 @@ class TradingEngine extends EventEmitter {
     };
   }
 
+  // The state handed to the strategy. Delta Exchange is the source of truth for
+  // "is a trade already on" — the local database is only a record, so it must
+  // never decide this. The snapshot asks Delta directly in live mode.
   async getStrategyState() {
-    const [positions, liveEntries] = await Promise.all([
-      positionManager.getOpenPositionsBySymbol(this.symbol),
-      orderManager.findLiveEntries(this.symbol),
-    ]);
+    const { positions, liveEntries, source } = await orderManager.getExchangeSnapshot(this.symbol);
 
     // A strategy may hold several concurrent positions; report the counts so it
     // can decide whether a free slot is available. The booleans are kept for
@@ -376,6 +408,7 @@ class TradingEngine extends EventEmitter {
       openPositions: positions.length,
       liveOrders: liveEntries.length,
       positions,
+      source,
     };
   }
 

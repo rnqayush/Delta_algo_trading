@@ -6,7 +6,6 @@
 const config = require('../../config/env');
 const Order = require('../../models/Order');
 const Trade = require('../../models/Trade');
-const Position = require('../../models/Position');
 const riskManager = require('./riskManager');
 const positionManager = require('./positionManager');
 const orderService = require('../delta/orderService');
@@ -53,13 +52,18 @@ function entryValidityMs() {
   return Number(config.strategy.entryValidityMinutes || 60) * 60 * 1000;
 }
 
-// The bracket / trade plan that must travel with the entry so the position can
-// be managed (stop, partials, trail) once the order fills.
+// The bracket / trade plan that must travel with the entry. When the bracket is
+// attached on the exchange (see executeLiveOrder) the flag rides along in meta so
+// the position manager knows Delta already owns the exit.
 function buildBracket(signal, options = {}) {
+  const takeProfit = Array.isArray(signal.takeProfit) ? signal.takeProfit : [];
+  const meta = signal.meta && typeof signal.meta === 'object' ? { ...signal.meta } : {};
+  if (options.bracketOnExchange) meta.bracketOnExchange = true;
+
   return {
     stopLoss: signal.stopLoss ?? null,
-    takeProfit: Array.isArray(signal.takeProfit) ? signal.takeProfit : [],
-    meta: signal.meta && typeof signal.meta === 'object' ? signal.meta : {},
+    takeProfit,
+    meta,
     purpose: options.reduceOnly ? 'exit' : 'entry',
     reduceOnly: Boolean(options.reduceOnly),
   };
@@ -191,6 +195,8 @@ async function findLiveOrder(symbol) {
 
 // All live ENTRY orders for a symbol (reduce-only exits excluded) — a symbol
 // can have several when a strategy holds concurrent slots.
+// This reads the LOCAL book, which is only a record — use
+// findExchangeLiveEntries() for placement-time decisions.
 async function findLiveEntries(symbol) {
   const target = normalizeSymbol(symbol);
   if (!target) return [];
@@ -200,6 +206,57 @@ async function findLiveEntries(symbol) {
     status: { $in: OPEN_ORDER_STATUSES },
     reduceOnly: { $ne: true },
   }).sort({ createdAt: -1 });
+}
+
+// Working ENTRY orders that Delta Exchange itself reports for `symbol`.
+//
+// The attached bracket rests protective legs on Delta as separate reduce-only
+// orders, so they have to be filtered out — otherwise the bot would think an
+// entry is still working and refuse to trade. Only genuine entries count.
+function isExchangeEntryOrder(order) {
+  if (order.reduce_only) return false;
+
+  const stopType = String(order.stop_order_type || '').toLowerCase();
+  return stopType !== 'stop_loss_order' && stopType !== 'take_profit_order';
+}
+
+async function findExchangeLiveEntries(symbol) {
+  const target = normalizeSymbol(symbol);
+  if (!target) return [];
+  if (config.trading.mode !== 'live') return findLiveEntries(target);
+
+  const product = await marketService.getProduct(target);
+  const orders = await orderService.getOpenOrders({ productId: product.id });
+
+  return (Array.isArray(orders) ? orders : [])
+    .filter((order) => Number(order.product_id) === Number(product.id))
+    .filter(isExchangeEntryOrder)
+    .map((order) => ({
+      symbol: target,
+      side: String(order.side || '').toLowerCase(),
+      quantity: Math.abs(Number(order.unfilled_size ?? order.size ?? 0)),
+      slot: 0,
+      source: 'delta',
+    }));
+}
+
+// One live snapshot of what is actually working for `symbol` on Delta: the open
+// position(s) and any resting entry order(s). Everything that gates a new order
+// reads this, so the database can never disagree with the exchange about
+// whether a trade is already on.
+async function getExchangeSnapshot(symbol) {
+  const target = normalizeSymbol(symbol);
+
+  const [positions, liveEntries] = await Promise.all([
+    positionManager.getExchangeOpenPositions(target),
+    findExchangeLiveEntries(target),
+  ]);
+
+  return {
+    positions,
+    liveEntries,
+    source: config.trading.mode === 'live' ? 'delta' : 'local',
+  };
 }
 
 // Drives resting PAPER orders forward: a limit entry fills as soon as the
@@ -534,22 +591,18 @@ function assertNotDuplicateInFlight(clientOrderId) {
 
 // Counts the open positions + resting entry orders for a symbol and returns the
 // lowest free slot. `allowed` is false when every slot is taken.
+//
+// The counts come from Delta (see getExchangeSnapshot), not from the database,
+// so a trade closed by hand can never leave the gate permanently shut.
 async function concurrencyGate(symbol) {
   const target = normalizeSymbol(symbol);
   const maxConcurrent = Math.max(1, Number(config.strategy.maxConcurrentPositions) || 1);
 
-  const [positions, liveEntries] = await Promise.all([
-    positionManager.getOpenPositionsBySymbol(target),
-    Order.find({
-      symbol: target,
-      status: { $in: OPEN_ORDER_STATUSES },
-      reduceOnly: { $ne: true },
-    }).select('meta'),
-  ]);
+  const { positions, liveEntries } = await getExchangeSnapshot(target);
 
   const used = new Set();
   positions.forEach((position) => used.add(Number(position.slot) || 0));
-  liveEntries.forEach((order) => used.add(Number(order.meta && order.meta.slot) || 0));
+  liveEntries.forEach((order) => used.add(Number(order.slot) || 0));
 
   if (used.size >= maxConcurrent) {
     return {
@@ -574,7 +627,9 @@ async function buildRiskContext(signal, options) {
       .sort({ createdAt: -1 })
       .limit(25)
       .lean(),
-    Position.find({ symbol: signal.symbol, status: 'open' }).lean(),
+    // Exposure is read from Delta, not the local book: the position-size check
+    // must reflect what the exchange is really holding.
+    positionManager.getExchangeOpenPositions(signal.symbol),
     Trade.find({ createdAt: { $gte: startOfToday() } }).lean(),
   ]);
 
@@ -685,7 +740,6 @@ async function executeLiveOrder(signal, options) {
 
   const product = await marketService.getProduct(signal.symbol);
   const side = signal.action === 'BUY' ? 'buy' : 'sell';
-  const bracket = buildBracket(signal, options);
   const resting = isRestingOrderType(signal.orderType);
 
   // Delta refuses any limit price that is not a whole multiple of the
@@ -693,6 +747,22 @@ async function executeLiveOrder(signal, options) {
   // entry/exit comes back "invalid price".
   const tickSize = product.tick_size ?? product.tickSize ?? null;
   const limitPrice = roundToTick(signal.price, tickSize);
+
+  // An entry that carries both a stop and a target is sent as one ATTACHED
+  // BRACKET: Delta creates the position and rests the fixed reduce-only SL/TP
+  // in the same call. Nothing is left unprotected, and the position manager
+  // never has to place, trail or cancel anything.
+  const stopPrice = Number(signal.stopLoss);
+  const targetPrice =
+    Array.isArray(signal.takeProfit) && signal.takeProfit.length
+      ? Number(signal.takeProfit[0].price)
+      : NaN;
+  const bracketOnExchange =
+    !options.reduceOnly &&
+    Number.isFinite(stopPrice) &&
+    stopPrice > 0 &&
+    Number.isFinite(targetPrice) &&
+    targetPrice > 0;
 
   const order = await Order.create({
     user: options.userId || null,
@@ -705,7 +775,7 @@ async function executeLiveOrder(signal, options) {
     price: limitPrice || 0,
     status: 'pending',
     mode: 'live',
-    ...bracket,
+    ...buildBracket(signal, { ...options, bracketOnExchange }),
     strategyName: signal.strategyName,
     reason: signal.reason,
     expiresAt: resting ? new Date(Date.now() + entryValidityMs()) : null,
@@ -719,8 +789,10 @@ async function executeLiveOrder(signal, options) {
       side,
       orderType: signal.orderType,
       limitPrice,
-      reduceOnly: bracket.reduceOnly,
+      reduceOnly: Boolean(options.reduceOnly),
       clientOrderId: order.clientOrderId,
+      bracketStopLossPrice: bracketOnExchange ? roundToTick(stopPrice, tickSize) : undefined,
+      bracketTakeProfitPrice: bracketOnExchange ? roundToTick(targetPrice, tickSize) : undefined,
     });
 
     order.deltaOrderId = String(response.id ?? response.order_id ?? '');
@@ -754,6 +826,8 @@ module.exports = {
   handleOrderUpdate,
   findLiveOrder,
   findLiveEntries,
+  findExchangeLiveEntries,
+  getExchangeSnapshot,
   handlePaperTick,
   cancelExpiredOrders,
   placeProtectiveStop,

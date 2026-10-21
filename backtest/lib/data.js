@@ -74,8 +74,10 @@ async function downloadCandles({ symbol, resolution, fromSec, toSec }) {
     for (const candle of batch) byTime.set(candle.time, candle);
 
     const oldest = batch[0].time;
-    // A short batch means the whole [fromSec, end] window was returned.
-    if (batch.length < MAX_ROWS_PER_REQUEST) break;
+    // Delta silently clamps every response to its newest MAX_ROWS_PER_REQUEST
+    // candles, so a "short" batch does NOT mean the window is complete — only
+    // stop once the oldest returned candle reaches the start of the window.
+    if (oldest <= fromSec) break;
 
     const nextEnd = oldest - 1;
     if (nextEnd >= end) break; // no progress — stop rather than spin
