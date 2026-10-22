@@ -20,7 +20,7 @@ const deltaWebSocket = require('../services/websocket/deltaWebSocket');
 // Put the strategy name exactly as it is returned by getName() and leave it
 // as '' to start nothing automatically.
 // ---------------------------------------------------------------------------
-const ACTIVE_STRATEGY = 'Block2hBreakout5m';
+const ACTIVE_STRATEGY = 'SrFade5m';
 
 const STRATEGY_FOLDER = path.join(__dirname, 'strategies');
 

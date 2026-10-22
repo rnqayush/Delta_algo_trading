@@ -35,6 +35,32 @@ function isRestingOrderType(orderType) {
   return RESTING_ORDER_TYPES.includes(String(orderType || '').toLowerCase());
 }
 
+// A LIMIT entry that declares an exchange bracket (meta.exitMode === 'bracket')
+// must carry BOTH a fixed stop and a fixed target: Delta only rests the bracket
+// when the same order call supplies both prices, so a missing leg would leave an
+// unprotected resting order on the book. Refuse it instead of sending it.
+// Market entries and trailing exits (meta.exitMode === 'trail') are unaffected.
+function checkBracketCompleteness(signal) {
+  const meta = signal.meta && typeof signal.meta === 'object' ? signal.meta : {};
+  if (meta.exitMode !== 'bracket' || !isRestingOrderType(signal.orderType)) {
+    return { ok: true };
+  }
+
+  const stop = Number(signal.stopLoss);
+  const tp = Array.isArray(signal.takeProfit) ? signal.takeProfit[0] : null;
+  const target = tp ? Number(tp.price) : NaN;
+
+  if (!(Number.isFinite(stop) && stop > 0) || !(Number.isFinite(target) && target > 0)) {
+    return {
+      ok: false,
+      reason:
+        `A limit bracket entry needs both a stop and a target (stop=${signal.stopLoss}, ` +
+        `target=${tp && tp.price})`,
+    };
+  }
+  return { ok: true };
+}
+
 // Delta rejects a limit price that is not a whole multiple of the product's
 // tick size (BTCUSD tick_size = 0.5), so snap the price before submitting.
 // Without this every live entry is refused with an invalid-price error.
@@ -93,6 +119,13 @@ async function execute(rawSignal, options = {}) {
     const existing = await Order.findOne({ clientOrderId: signal.clientOrderId });
     if (existing) {
       throw new AppError('Duplicate order blocked: this order was already submitted', 409);
+    }
+
+    // A bracket-mode limit entry must never rest unprotected on the book.
+    const bracketCheck = checkBracketCompleteness(signal);
+    if (!bracketCheck.ok) {
+      logger.warn(`Order blocked: ${bracketCheck.reason}`);
+      return { executed: false, reason: bracketCheck.reason, signal };
     }
 
     // Concurrency gate. A strategy may hold up to `maxConcurrentPositions`
@@ -803,7 +836,12 @@ async function executeLiveOrder(signal, options) {
     order.filledAt = order.status === 'filled' ? new Date() : null;
     await order.save();
 
-    logger.info(`Live order submitted: ${order.side} ${order.quantity} ${order.symbol} (delta id ${order.deltaOrderId})`);
+    logger.info(
+      `Live order submitted: ${order.side} ${order.quantity} ${order.symbol} ` +
+        `${order.orderType}${limitPrice ? ` @ ${limitPrice}` : ''}` +
+        `${bracketOnExchange ? ` with on-exchange bracket stop ${roundToTick(stopPrice, tickSize)} / TP ${roundToTick(targetPrice, tickSize)}` : ''} ` +
+        `(delta id ${order.deltaOrderId})`
+    );
 
     if (order.status === 'filled') {
       await positionManager.applyOrder(order);
