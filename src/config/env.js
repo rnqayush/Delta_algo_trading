@@ -94,7 +94,9 @@ const config = {
     // request, so 15m/30m configs never pay for a series they do not use.
     candles5mCount: toNumber(process.env.STRATEGY_CANDLES_5M, 0),
     // 1m feed for strategies whose base timeframe is 1m. 0 disables the request.
-    candles1mCount: toNumber(process.env.STRATEGY_CANDLES_1M, 0),
+    // The active SuperTrend2Macd1m strategy needs ~1000 bars to warm up its 2h
+    // SuperTrend, so the default keeps a full window of 1m candles.
+    candles1mCount: toNumber(process.env.STRATEGY_CANDLES_1M, 2000),
     candles1hCount: toNumber(process.env.STRATEGY_CANDLES_1H, 100),
   },
 };

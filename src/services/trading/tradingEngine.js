@@ -196,7 +196,33 @@ class TradingEngine extends EventEmitter {
     const signal = this.strategy.evaluate(this.buildMarketData(ticker), state);
     if (!signal) return { executed: false, reason: 'Strategy returned no signal' };
 
-    if (String(signal.action || 'HOLD').toUpperCase() === 'HOLD') {
+    const action = String(signal.action || 'HOLD').toUpperCase();
+
+    // A strategy may ask to flatten the symbol — the "reverse" leg of a flip.
+    // The close is a reduce-only market order; the strategy re-enters on the
+    // next cycle once the position is gone.
+    if (action === 'CLOSE') {
+      try {
+        const closed = await positionManager.closePosition({
+          symbol: this.symbol,
+          price: ticker.price,
+          userId: this.options.userId || null,
+        });
+        const reason = signal.reason || `Closed the ${this.symbol} position on the strategy's signal`;
+        this.emit('signal', {
+          action: 'CLOSE',
+          symbol: this.symbol,
+          strategyName: this.strategy.getName(),
+          reason,
+        });
+        return { executed: true, position: closed, reason };
+      } catch (error) {
+        logger.warn(`Strategy-requested close failed: ${error.message}`);
+        return { executed: false, reason: error.message };
+      }
+    }
+
+    if (action === 'HOLD') {
       this.emit('hold', { symbol: this.symbol, reason: signal.reason || 'HOLD' });
       return { executed: false, reason: signal.reason || 'HOLD' };
     }

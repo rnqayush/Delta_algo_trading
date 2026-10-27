@@ -1,0 +1,6019 @@
+{
+  "generatedAt": "2026-10-27T00:01:49.098Z",
+  "symbol": "BTCUSD",
+  "sims": 43200,
+  "baseline": {
+    "factor": 1,
+    "pd": 1,
+    "macdFast": 12,
+    "macdSlow": 26,
+    "macdSignal": 9,
+    "tpPoints": 500,
+    "slPoints": 400,
+    "htfSec": 7200,
+    "useMacd": true,
+    "exitMode": "bracket"
+  },
+  "top": [
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 86.21,
+      "pct30d": 7.18,
+      "trades": 150,
+      "winPct": 54,
+      "grossR": 0.23,
+      "netR": 0.1,
+      "blocks": [
+        -3.13,
+        65.89,
+        23.45
+      ],
+      "net7d": 45.92,
+      "pct7d": 3.83,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 75.21,
+      "pct30d": 6.27,
+      "trades": 151,
+      "winPct": 53.64,
+      "grossR": 0.22,
+      "netR": 0.08,
+      "blocks": [
+        14.7,
+        37.77,
+        22.74
+      ],
+      "net7d": 45.91,
+      "pct7d": 3.83,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 59.82,
+      "pct30d": 4.99,
+      "trades": 149,
+      "winPct": 52.35,
+      "grossR": 0.2,
+      "netR": 0.07,
+      "blocks": [
+        1.73,
+        43.45,
+        14.64
+      ],
+      "net7d": 40.32,
+      "pct7d": 3.36,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 54.93,
+      "pct30d": 4.58,
+      "trades": 152,
+      "winPct": 52.63,
+      "grossR": 0.19,
+      "netR": 0.06,
+      "blocks": [
+        3.7,
+        21.27,
+        29.96
+      ],
+      "net7d": 51.56,
+      "pct7d": 4.3,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 53.94,
+      "pct30d": 4.5,
+      "trades": 154,
+      "winPct": 52.6,
+      "grossR": 0.19,
+      "netR": 0.06,
+      "blocks": [
+        -26.56,
+        54.36,
+        26.15
+      ],
+      "net7d": 49.8,
+      "pct7d": 4.15,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 53.76,
+      "pct30d": 4.48,
+      "trades": 152,
+      "winPct": 52.63,
+      "grossR": 0.19,
+      "netR": 0.06,
+      "blocks": [
+        7.16,
+        15.28,
+        31.32
+      ],
+      "net7d": 54.42,
+      "pct7d": 4.53,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 1,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 51.23,
+      "pct30d": 4.27,
+      "trades": 153,
+      "winPct": 52.29,
+      "grossR": 0.19,
+      "netR": 0.06,
+      "blocks": [
+        4.26,
+        53.01,
+        -6.03
+      ],
+      "net7d": 29.69,
+      "pct7d": 2.47,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 49.97,
+      "pct30d": 4.16,
+      "trades": 149,
+      "winPct": 52.35,
+      "grossR": 0.19,
+      "netR": 0.06,
+      "blocks": [
+        -71.23,
+        109.38,
+        11.82
+      ],
+      "net7d": 27.55,
+      "pct7d": 2.3,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 49.65,
+      "pct30d": 4.14,
+      "trades": 140,
+      "winPct": 51.43,
+      "grossR": 0.19,
+      "netR": 0.06,
+      "blocks": [
+        35.18,
+        13.08,
+        1.39
+      ],
+      "net7d": 38.39,
+      "pct7d": 3.2,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 47.14,
+      "pct30d": 3.93,
+      "trades": 147,
+      "winPct": 52.38,
+      "grossR": 0.19,
+      "netR": 0.05,
+      "blocks": [
+        31.37,
+        -2.94,
+        18.71
+      ],
+      "net7d": 40.31,
+      "pct7d": 3.36,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 46.66,
+      "pct30d": 3.89,
+      "trades": 151,
+      "winPct": 51.66,
+      "grossR": 0.19,
+      "netR": 0.05,
+      "blocks": [
+        -4.98,
+        37.02,
+        14.62
+      ],
+      "net7d": 45.77,
+      "pct7d": 3.81,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 45.57,
+      "pct30d": 3.8,
+      "trades": 147,
+      "winPct": 51.7,
+      "grossR": 0.19,
+      "netR": 0.05,
+      "blocks": [
+        8.84,
+        36.46,
+        0.28
+      ],
+      "net7d": 40.33,
+      "pct7d": 3.36,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 45.54,
+      "pct30d": 3.8,
+      "trades": 147,
+      "winPct": 51.7,
+      "grossR": 0.19,
+      "netR": 0.05,
+      "blocks": [
+        14.64,
+        43.26,
+        -12.35
+      ],
+      "net7d": 45.7,
+      "pct7d": 3.81,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 44.76,
+      "pct30d": 3.73,
+      "trades": 151,
+      "winPct": 51.66,
+      "grossR": 0.18,
+      "netR": 0.05,
+      "blocks": [
+        14.52,
+        43.14,
+        -12.9
+      ],
+      "net7d": 38.58,
+      "pct7d": 3.21,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 43.1,
+      "pct30d": 3.59,
+      "trades": 151,
+      "winPct": 51.66,
+      "grossR": 0.18,
+      "netR": 0.05,
+      "blocks": [
+        8.52,
+        51.05,
+        -16.46
+      ],
+      "net7d": 24.61,
+      "pct7d": 2.05,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 40.96,
+      "pct30d": 3.41,
+      "trades": 154,
+      "winPct": 51.95,
+      "grossR": 0.18,
+      "netR": 0.04,
+      "blocks": [
+        -51.65,
+        69.15,
+        23.45
+      ],
+      "net7d": 45.92,
+      "pct7d": 3.83,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 40.79,
+      "pct30d": 3.4,
+      "trades": 119,
+      "winPct": 52.1,
+      "grossR": 0.19,
+      "netR": 0.06,
+      "blocks": [
+        11.42,
+        27.18,
+        2.2
+      ],
+      "net7d": 30.82,
+      "pct7d": 2.57,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 1000,
+          "slPoints": 200
+        },
+        "mode": "hold"
+      },
+      "net30d": 40.56,
+      "pct30d": 3.38,
+      "trades": 110,
+      "winPct": 23.64,
+      "grossR": 0.39,
+      "netR": 0.06,
+      "blocks": [
+        78.55,
+        34.93,
+        -72.93
+      ],
+      "net7d": -89.88,
+      "pct7d": -7.49,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 40.5,
+      "pct30d": 3.38,
+      "trades": 157,
+      "winPct": 51.59,
+      "grossR": 0.18,
+      "netR": 0.04,
+      "blocks": [
+        18.6,
+        22.07,
+        -0.17
+      ],
+      "net7d": 51.56,
+      "pct7d": 4.3,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 40.15,
+      "pct30d": 3.35,
+      "trades": 160,
+      "winPct": 51.88,
+      "grossR": 0.18,
+      "netR": 0.04,
+      "blocks": [
+        21.84,
+        31.45,
+        -13.14
+      ],
+      "net7d": 17.44,
+      "pct7d": 1.45,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 39.51,
+      "pct30d": 3.29,
+      "trades": 146,
+      "winPct": 52.05,
+      "grossR": 0.18,
+      "netR": 0.05,
+      "blocks": [
+        -65.11,
+        100.4,
+        4.21
+      ],
+      "net7d": 20.52,
+      "pct7d": 1.71,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 39.02,
+      "pct30d": 3.25,
+      "trades": 136,
+      "winPct": 52.21,
+      "grossR": 0.18,
+      "netR": 0.05,
+      "blocks": [
+        28.74,
+        6.32,
+        3.97
+      ],
+      "net7d": 39.7,
+      "pct7d": 3.31,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 1,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 38.32,
+      "pct30d": 3.19,
+      "trades": 158,
+      "winPct": 51.27,
+      "grossR": 0.18,
+      "netR": 0.04,
+      "blocks": [
+        33.68,
+        24.72,
+        -20.08
+      ],
+      "net7d": 29.69,
+      "pct7d": 2.47,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 37.36,
+      "pct30d": 3.11,
+      "trades": 142,
+      "winPct": 52.11,
+      "grossR": 0.18,
+      "netR": 0.04,
+      "blocks": [
+        -7.65,
+        21.22,
+        23.79
+      ],
+      "net7d": 38.39,
+      "pct7d": 3.2,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 35.98,
+      "pct30d": 3,
+      "trades": 128,
+      "winPct": 51.56,
+      "grossR": 0.18,
+      "netR": 0.05,
+      "blocks": [
+        35.54,
+        19.46,
+        -19.01
+      ],
+      "net7d": 16.72,
+      "pct7d": 1.39,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 35.73,
+      "pct30d": 2.98,
+      "trades": 134,
+      "winPct": 50.75,
+      "grossR": 0.18,
+      "netR": 0.04,
+      "blocks": [
+        -3.61,
+        20.24,
+        19.1
+      ],
+      "net7d": 37.39,
+      "pct7d": 3.12,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 7,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 35.47,
+      "pct30d": 2.96,
+      "trades": 151,
+      "winPct": 51.66,
+      "grossR": 0.17,
+      "netR": 0.04,
+      "blocks": [
+        -10.14,
+        30.65,
+        14.95
+      ],
+      "net7d": 45.83,
+      "pct7d": 3.82,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 34.82,
+      "pct30d": 2.9,
+      "trades": 142,
+      "winPct": 51.41,
+      "grossR": 0.17,
+      "netR": 0.04,
+      "blocks": [
+        -3.35,
+        21.18,
+        17
+      ],
+      "net7d": 45.7,
+      "pct7d": 3.81,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 33.91,
+      "pct30d": 2.83,
+      "trades": 147,
+      "winPct": 51.02,
+      "grossR": 0.17,
+      "netR": 0.04,
+      "blocks": [
+        -3.56,
+        20.48,
+        16.98
+      ],
+      "net7d": 38.58,
+      "pct7d": 3.21,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 33.72,
+      "pct30d": 2.81,
+      "trades": 124,
+      "winPct": 51.61,
+      "grossR": 0.18,
+      "netR": 0.05,
+      "blocks": [
+        18.16,
+        -0.83,
+        16.39
+      ],
+      "net7d": 45.01,
+      "pct7d": 3.75,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 32.58,
+      "pct30d": 2.71,
+      "trades": 141,
+      "winPct": 51.77,
+      "grossR": 0.17,
+      "netR": 0.04,
+      "blocks": [
+        22.39,
+        6.21,
+        3.97
+      ],
+      "net7d": 39.7,
+      "pct7d": 3.31,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 30.78,
+      "pct30d": 2.56,
+      "trades": 147,
+      "winPct": 51.02,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        -10.22,
+        14.74,
+        26.26
+      ],
+      "net7d": 44.82,
+      "pct7d": 3.73,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 30.25,
+      "pct30d": 2.52,
+      "trades": 150,
+      "winPct": 51.33,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        -45.27,
+        81.09,
+        -5.57
+      ],
+      "net7d": 16.16,
+      "pct7d": 1.35,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 29.74,
+      "pct30d": 2.48,
+      "trades": 141,
+      "winPct": 50.35,
+      "grossR": 0.17,
+      "netR": 0.04,
+      "blocks": [
+        42.82,
+        -7.34,
+        -5.74
+      ],
+      "net7d": 24.17,
+      "pct7d": 2.01,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 29.55,
+      "pct30d": 2.46,
+      "trades": 151,
+      "winPct": 50.99,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        29.5,
+        15.93,
+        -15.87
+      ],
+      "net7d": 24.6,
+      "pct7d": 2.05,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 29.44,
+      "pct30d": 2.45,
+      "trades": 148,
+      "winPct": 51.35,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        11.08,
+        21.59,
+        -3.23
+      ],
+      "net7d": 32.49,
+      "pct7d": 2.71,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 28.84,
+      "pct30d": 2.4,
+      "trades": 152,
+      "winPct": 51.32,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        -42.99,
+        74.8,
+        -2.97
+      ],
+      "net7d": 13.34,
+      "pct7d": 1.11,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 1000,
+          "slPoints": 200
+        },
+        "mode": "reverse"
+      },
+      "net30d": 28.47,
+      "pct30d": 2.37,
+      "trades": 118,
+      "winPct": 22.88,
+      "grossR": 0.37,
+      "netR": 0.04,
+      "blocks": [
+        53.57,
+        53.81,
+        -78.91
+      ],
+      "net7d": -95.86,
+      "pct7d": -7.99,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 28.37,
+      "pct30d": 2.36,
+      "trades": 150,
+      "winPct": 50.67,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        -10.63,
+        35.98,
+        3.01
+      ],
+      "net7d": 24.61,
+      "pct7d": 2.05,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 28.3,
+      "pct30d": 2.36,
+      "trades": 152,
+      "winPct": 51.97,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        -65.15,
+        88.72,
+        4.73
+      ],
+      "net7d": 20.46,
+      "pct7d": 1.71,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 27.78,
+      "pct30d": 2.31,
+      "trades": 134,
+      "winPct": 50.75,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        33.91,
+        -1.16,
+        -4.97
+      ],
+      "net7d": 39.7,
+      "pct7d": 3.31,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 27.56,
+      "pct30d": 2.3,
+      "trades": 150,
+      "winPct": 51.33,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        -40.7,
+        54.22,
+        14.04
+      ],
+      "net7d": 37.7,
+      "pct7d": 3.14,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 26.89,
+      "pct30d": 2.24,
+      "trades": 129,
+      "winPct": 51.16,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        28.24,
+        -3.63,
+        2.28
+      ],
+      "net7d": 30.9,
+      "pct7d": 2.58,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 26.42,
+      "pct30d": 2.2,
+      "trades": 142,
+      "winPct": 51.41,
+      "grossR": 0.16,
+      "netR": 0.03,
+      "blocks": [
+        24.87,
+        -3.08,
+        4.62
+      ],
+      "net7d": 26.22,
+      "pct7d": 2.18,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 25.26,
+      "pct30d": 2.1,
+      "trades": 130,
+      "winPct": 50.77,
+      "grossR": 0.17,
+      "netR": 0.03,
+      "blocks": [
+        -3.11,
+        12.71,
+        15.65
+      ],
+      "net7d": 44.28,
+      "pct7d": 3.69,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 25.11,
+      "pct30d": 2.09,
+      "trades": 149,
+      "winPct": 50.34,
+      "grossR": 0.16,
+      "netR": 0.03,
+      "blocks": [
+        -21.52,
+        74.73,
+        -28.1
+      ],
+      "net7d": 11.97,
+      "pct7d": 1,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 24.81,
+      "pct30d": 2.07,
+      "trades": 144,
+      "winPct": 51.39,
+      "grossR": 0.16,
+      "netR": 0.03,
+      "blocks": [
+        38.84,
+        -17.03,
+        3
+      ],
+      "net7d": 24.6,
+      "pct7d": 2.05,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 24.76,
+      "pct30d": 2.06,
+      "trades": 146,
+      "winPct": 51.37,
+      "grossR": 0.16,
+      "netR": 0.03,
+      "blocks": [
+        -3.37,
+        25.12,
+        3.01
+      ],
+      "net7d": 24.61,
+      "pct7d": 2.05,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 24.5,
+      "pct30d": 2.04,
+      "trades": 148,
+      "winPct": 51.35,
+      "grossR": 0.16,
+      "netR": 0.03,
+      "blocks": [
+        -18.01,
+        46.51,
+        -4
+      ],
+      "net7d": 24.7,
+      "pct7d": 2.06,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 24.02,
+      "pct30d": 2,
+      "trades": 157,
+      "winPct": 50.32,
+      "grossR": 0.16,
+      "netR": 0.03,
+      "blocks": [
+        -35.14,
+        58.07,
+        1.08
+      ],
+      "net7d": 24.6,
+      "pct7d": 2.05,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 23.87,
+      "pct30d": 1.99,
+      "trades": 153,
+      "winPct": 51.63,
+      "grossR": 0.16,
+      "netR": 0.03,
+      "blocks": [
+        -51.83,
+        81.85,
+        -6.15
+      ],
+      "net7d": 15.58,
+      "pct7d": 1.3,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 23.33,
+      "pct30d": 1.94,
+      "trades": 154,
+      "winPct": 50.65,
+      "grossR": 0.16,
+      "netR": 0.03,
+      "blocks": [
+        14.66,
+        10.15,
+        -1.48
+      ],
+      "net7d": 26.12,
+      "pct7d": 2.18,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 1,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 22.73,
+      "pct30d": 1.89,
+      "trades": 187,
+      "winPct": 50.27,
+      "grossR": 0.16,
+      "netR": 0.02,
+      "blocks": [
+        -18.7,
+        -5.31,
+        46.74
+      ],
+      "net7d": 67.42,
+      "pct7d": 5.62,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 3,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 22.47,
+      "pct30d": 1.87,
+      "trades": 153,
+      "winPct": 50.98,
+      "grossR": 0.16,
+      "netR": 0.02,
+      "blocks": [
+        4.84,
+        15.55,
+        2.08
+      ],
+      "net7d": 44.91,
+      "pct7d": 3.74,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 7,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 22.01,
+      "pct30d": 1.83,
+      "trades": 149,
+      "winPct": 51.01,
+      "grossR": 0.16,
+      "netR": 0.02,
+      "blocks": [
+        -84.09,
+        111.18,
+        -5.08
+      ],
+      "net7d": 20.28,
+      "pct7d": 1.69,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 19.53,
+      "pct30d": 1.63,
+      "trades": 139,
+      "winPct": 51.08,
+      "grossR": 0.16,
+      "netR": 0.02,
+      "blocks": [
+        3.72,
+        11.17,
+        4.63
+      ],
+      "net7d": 33.33,
+      "pct7d": 2.78,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 19.5,
+      "pct30d": 1.63,
+      "trades": 147,
+      "winPct": 51.02,
+      "grossR": 0.16,
+      "netR": 0.02,
+      "blocks": [
+        -47.04,
+        54.34,
+        12.2
+      ],
+      "net7d": 45.03,
+      "pct7d": 3.75,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 19.28,
+      "pct30d": 1.61,
+      "trades": 143,
+      "winPct": 51.05,
+      "grossR": 0.16,
+      "netR": 0.02,
+      "blocks": [
+        38.59,
+        -2.84,
+        -16.48
+      ],
+      "net7d": 19.25,
+      "pct7d": 1.6,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 18.91,
+      "pct30d": 1.58,
+      "trades": 152,
+      "winPct": 50.66,
+      "grossR": 0.16,
+      "netR": 0.02,
+      "blocks": [
+        0.1,
+        24.07,
+        -5.25
+      ],
+      "net7d": 19.13,
+      "pct7d": 1.59,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 18.89,
+      "pct30d": 1.57,
+      "trades": 155,
+      "winPct": 50.97,
+      "grossR": 0.16,
+      "netR": 0.02,
+      "blocks": [
+        -44.88,
+        41.03,
+        22.74
+      ],
+      "net7d": 45.91,
+      "pct7d": 3.83,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 17.87,
+      "pct30d": 1.49,
+      "trades": 148,
+      "winPct": 50.68,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        19.97,
+        0.42,
+        -2.52
+      ],
+      "net7d": 43,
+      "pct7d": 3.58,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 17.61,
+      "pct30d": 1.47,
+      "trades": 145,
+      "winPct": 51.03,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        17.34,
+        18.39,
+        -18.12
+      ],
+      "net7d": 24.7,
+      "pct7d": 2.06,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 17.58,
+      "pct30d": 1.46,
+      "trades": 147,
+      "winPct": 51.02,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        -38.85,
+        60.42,
+        -3.99
+      ],
+      "net7d": 24.71,
+      "pct7d": 2.06,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 30,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 17.42,
+      "pct30d": 1.45,
+      "trades": 133,
+      "winPct": 50.38,
+      "grossR": 0.16,
+      "netR": 0.02,
+      "blocks": [
+        -3.25,
+        19.56,
+        1.11
+      ],
+      "net7d": 29.73,
+      "pct7d": 2.48,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 16.66,
+      "pct30d": 1.39,
+      "trades": 151,
+      "winPct": 50.99,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        -17.08,
+        30.83,
+        2.91
+      ],
+      "net7d": 31.62,
+      "pct7d": 2.64,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 15.84,
+      "pct30d": 1.32,
+      "trades": 149,
+      "winPct": 50.34,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        4.89,
+        7.94,
+        3
+      ],
+      "net7d": 24.6,
+      "pct7d": 2.05,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 1,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 15.76,
+      "pct30d": 1.31,
+      "trades": 157,
+      "winPct": 50.96,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        4.35,
+        10.72,
+        0.7
+      ],
+      "net7d": 30.54,
+      "pct7d": 2.55,
+      "robust": true
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 1,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 14.64,
+      "pct30d": 1.22,
+      "trades": 160,
+      "winPct": 50,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        -40.79,
+        30.67,
+        24.75
+      ],
+      "net7d": 44.36,
+      "pct7d": 3.7,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 13.93,
+      "pct30d": 1.16,
+      "trades": 157,
+      "winPct": 51.59,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -37.99,
+        47.33,
+        4.59
+      ],
+      "net7d": 40.31,
+      "pct7d": 3.36,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 28800,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 13.63,
+      "pct30d": 1.14,
+      "trades": 127,
+      "winPct": 51.18,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        81.8,
+        -73.42,
+        5.25
+      ],
+      "net7d": 19.77,
+      "pct7d": 1.65,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 13.56,
+      "pct30d": 1.13,
+      "trades": 149,
+      "winPct": 49.66,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        -43.04,
+        88.85,
+        -32.24
+      ],
+      "net7d": 4.85,
+      "pct7d": 0.4,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 28800,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 13.45,
+      "pct30d": 1.12,
+      "trades": 131,
+      "winPct": 51.15,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        39.29,
+        -9.97,
+        -15.88
+      ],
+      "net7d": 12.86,
+      "pct7d": 1.07,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 12.87,
+      "pct30d": 1.07,
+      "trades": 154,
+      "winPct": 50.65,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -6.71,
+        57.61,
+        -38.03
+      ],
+      "net7d": 2.7,
+      "pct7d": 0.22,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 7,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 12.6,
+      "pct30d": 1.05,
+      "trades": 153,
+      "winPct": 49.67,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        39.95,
+        -12.89,
+        -14.46
+      ],
+      "net7d": 32.49,
+      "pct7d": 2.71,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 1,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 12.35,
+      "pct30d": 1.03,
+      "trades": 165,
+      "winPct": 50.3,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -44.63,
+        38.74,
+        18.25
+      ],
+      "net7d": 43.23,
+      "pct7d": 3.6,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 12.16,
+      "pct30d": 1.01,
+      "trades": 134,
+      "winPct": 50.75,
+      "grossR": 0.15,
+      "netR": 0.02,
+      "blocks": [
+        25.12,
+        -16.93,
+        3.97
+      ],
+      "net7d": 39.7,
+      "pct7d": 3.31,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 11.75,
+      "pct30d": 0.98,
+      "trades": 156,
+      "winPct": 50,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -53.3,
+        50.12,
+        14.93
+      ],
+      "net7d": 38.58,
+      "pct7d": 3.21,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 11.7,
+      "pct30d": 0.97,
+      "trades": 148,
+      "winPct": 50.68,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -18.19,
+        25.3,
+        4.59
+      ],
+      "net7d": 40.31,
+      "pct7d": 3.36,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 11.3,
+      "pct30d": 0.94,
+      "trades": 155,
+      "winPct": 49.68,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        26.09,
+        1.22,
+        -16.01
+      ],
+      "net7d": 44.91,
+      "pct7d": 3.74,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 10.8,
+      "pct30d": 0.9,
+      "trades": 142,
+      "winPct": 50.7,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -17.79,
+        25.46,
+        3.12
+      ],
+      "net7d": 31.81,
+      "pct7d": 2.65,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 7,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 10.79,
+      "pct30d": 0.9,
+      "trades": 149,
+      "winPct": 51.01,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -0.9,
+        15.68,
+        -3.99
+      ],
+      "net7d": 26.35,
+      "pct7d": 2.2,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 10.7,
+      "pct30d": 0.89,
+      "trades": 158,
+      "winPct": 50,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -60.11,
+        42.9,
+        27.91
+      ],
+      "net7d": 51.56,
+      "pct7d": 4.3,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 10.67,
+      "pct30d": 0.89,
+      "trades": 144,
+      "winPct": 50.69,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -31.76,
+        46.41,
+        -3.98
+      ],
+      "net7d": 24.72,
+      "pct7d": 2.06,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 10.66,
+      "pct30d": 0.89,
+      "trades": 156,
+      "winPct": 50.64,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        21.1,
+        29.49,
+        -39.93
+      ],
+      "net7d": 2.69,
+      "pct7d": 0.22,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 10.66,
+      "pct30d": 0.89,
+      "trades": 144,
+      "winPct": 50.69,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -10.63,
+        39.39,
+        -18.11
+      ],
+      "net7d": 24.71,
+      "pct7d": 2.06,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 3,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 10.54,
+      "pct30d": 0.88,
+      "trades": 146,
+      "winPct": 50.68,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        31.88,
+        -10.18,
+        -11.16
+      ],
+      "net7d": 31.67,
+      "pct7d": 2.64,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 10.51,
+      "pct30d": 0.88,
+      "trades": 146,
+      "winPct": 50.68,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -3.79,
+        18.29,
+        -3.99
+      ],
+      "net7d": 24.71,
+      "pct7d": 2.06,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 1,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 9.79,
+      "pct30d": 0.82,
+      "trades": 172,
+      "winPct": 49.42,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -15.67,
+        25.93,
+        -0.47
+      ],
+      "net7d": 43.23,
+      "pct7d": 3.6,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 9.4,
+      "pct30d": 0.78,
+      "trades": 149,
+      "winPct": 50.34,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -3.92,
+        18.39,
+        -5.07
+      ],
+      "net7d": 24.7,
+      "pct7d": 2.06,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 1,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 9.18,
+      "pct30d": 0.77,
+      "trades": 148,
+      "winPct": 50.68,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        3.16,
+        25.29,
+        -19.27
+      ],
+      "net7d": 16.45,
+      "pct7d": 1.37,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 8.73,
+      "pct30d": 0.73,
+      "trades": 149,
+      "winPct": 48.99,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -8.21,
+        29.85,
+        -12.91
+      ],
+      "net7d": 10.51,
+      "pct7d": 0.88,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 8.38,
+      "pct30d": 0.7,
+      "trades": 159,
+      "winPct": 49.69,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        -62.48,
+        71.98,
+        -1.12
+      ],
+      "net7d": 24.61,
+      "pct7d": 2.05,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 7,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 7.43,
+      "pct30d": 0.62,
+      "trades": 118,
+      "winPct": 50,
+      "grossR": 0.15,
+      "netR": 0.01,
+      "blocks": [
+        20.96,
+        -8.72,
+        -4.8
+      ],
+      "net7d": 30.82,
+      "pct7d": 2.57,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 7.25,
+      "pct30d": 0.6,
+      "trades": 116,
+      "winPct": 50.86,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        11.42,
+        4.64,
+        -8.81
+      ],
+      "net7d": 19.82,
+      "pct7d": 1.65,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 7.03,
+      "pct30d": 0.59,
+      "trades": 135,
+      "winPct": 49.63,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        -42.44,
+        69.41,
+        -19.94
+      ],
+      "net7d": -1.31,
+      "pct7d": -0.11,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 7,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 6.34,
+      "pct30d": 0.53,
+      "trades": 150,
+      "winPct": 50.67,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        -20.31,
+        33.3,
+        -6.64
+      ],
+      "net7d": 30.73,
+      "pct7d": 2.56,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 6.27,
+      "pct30d": 0.52,
+      "trades": 140,
+      "winPct": 48.57,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        -8.73,
+        -1.67,
+        16.67
+      ],
+      "net7d": 37.39,
+      "pct7d": 3.12,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 5.85,
+      "pct30d": 0.49,
+      "trades": 141,
+      "winPct": 49.65,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        27.61,
+        -15.49,
+        -6.27
+      ],
+      "net7d": 39.7,
+      "pct7d": 3.31,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 5.69,
+      "pct30d": 0.47,
+      "trades": 140,
+      "winPct": 49.29,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        -10.23,
+        -0.99,
+        16.91
+      ],
+      "net7d": 31.66,
+      "pct7d": 2.64,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 5.41,
+      "pct30d": 0.45,
+      "trades": 152,
+      "winPct": 49.34,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        -52.72,
+        74.89,
+        -16.76
+      ],
+      "net7d": 18.94,
+      "pct7d": 1.58,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 4.81,
+      "pct30d": 0.4,
+      "trades": 139,
+      "winPct": 50.36,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        17.87,
+        -17.03,
+        3.97
+      ],
+      "net7d": 39.7,
+      "pct7d": 3.31,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 4.8,
+      "pct30d": 0.4,
+      "trades": 147,
+      "winPct": 50.34,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        -38.98,
+        67.53,
+        -23.76
+      ],
+      "net7d": -2.03,
+      "pct7d": -0.17,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 4.48,
+      "pct30d": 0.37,
+      "trades": 138,
+      "winPct": 50,
+      "grossR": 0.14,
+      "netR": 0.01,
+      "blocks": [
+        21.97,
+        2.24,
+        -19.73
+      ],
+      "net7d": 8.89,
+      "pct7d": 0.74,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 4.4,
+      "pct30d": 0.37,
+      "trades": 148,
+      "winPct": 49.32,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -86.61,
+        109.07,
+        -18.07
+      ],
+      "net7d": 19.02,
+      "pct7d": 1.59,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 4.26,
+      "pct30d": 0.35,
+      "trades": 149,
+      "winPct": 50.34,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -44.04,
+        67.53,
+        -19.23
+      ],
+      "net7d": 9.6,
+      "pct7d": 0.8,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 3.98,
+      "pct30d": 0.33,
+      "trades": 138,
+      "winPct": 50,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -28.78,
+        24.4,
+        8.37
+      ],
+      "net7d": 37.09,
+      "pct7d": 3.09,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 3.82,
+      "pct30d": 0.32,
+      "trades": 135,
+      "winPct": 50.37,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -29.85,
+        68.17,
+        -34.51
+      ],
+      "net7d": -5.77,
+      "pct7d": -0.48,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": 3.65,
+      "pct30d": 0.3,
+      "trades": 143,
+      "winPct": 50.35,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        3.19,
+        -2.66,
+        3.11
+      ],
+      "net7d": 31.8,
+      "pct7d": 2.65,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 3.6,
+      "pct30d": 0.3,
+      "trades": 152,
+      "winPct": 49.34,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -65.08,
+        96.78,
+        -28.1
+      ],
+      "net7d": 11.97,
+      "pct7d": 1,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 1,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 3.5,
+      "pct30d": 0.29,
+      "trades": 156,
+      "winPct": 50,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -24.66,
+        16.53,
+        11.63
+      ],
+      "net7d": 42.72,
+      "pct7d": 3.56,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 3.33,
+      "pct30d": 0.28,
+      "trades": 141,
+      "winPct": 49.65,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -25.51,
+        24.86,
+        3.97
+      ],
+      "net7d": 39.7,
+      "pct7d": 3.31,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 3.13,
+      "pct30d": 0.26,
+      "trades": 148,
+      "winPct": 50,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -31.78,
+        39.39,
+        -4.48
+      ],
+      "net7d": 24.71,
+      "pct7d": 2.06,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 2.63,
+      "pct30d": 0.22,
+      "trades": 153,
+      "winPct": 49.67,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -53.57,
+        43.33,
+        12.87
+      ],
+      "net7d": 45.7,
+      "pct7d": 3.81,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 2.54,
+      "pct30d": 0.21,
+      "trades": 131,
+      "winPct": 49.62,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        19.22,
+        9.1,
+        -25.78
+      ],
+      "net7d": -11.26,
+      "pct7d": -0.94,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 3,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 2.44,
+      "pct30d": 0.2,
+      "trades": 146,
+      "winPct": 48.63,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -89.44,
+        97.52,
+        -5.64
+      ],
+      "net7d": 28.43,
+      "pct7d": 2.37,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 2.37,
+      "pct30d": 0.2,
+      "trades": 148,
+      "winPct": 49.32,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -29.16,
+        43.76,
+        -12.22
+      ],
+      "net7d": 10.61,
+      "pct7d": 0.88,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 2.17,
+      "pct30d": 0.18,
+      "trades": 136,
+      "winPct": 49.26,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -43.18,
+        75.2,
+        -29.84
+      ],
+      "net7d": 5.78,
+      "pct7d": 0.48,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 1.36,
+      "pct30d": 0.11,
+      "trades": 207,
+      "winPct": 48.79,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -22.6,
+        0.88,
+        23.07
+      ],
+      "net7d": 50.08,
+      "pct7d": 4.17,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 3,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 1.18,
+      "pct30d": 0.1,
+      "trades": 151,
+      "winPct": 49.67,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -6.25,
+        -6.85,
+        14.28
+      ],
+      "net7d": 43,
+      "pct7d": 3.58,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 0.53,
+      "pct30d": 0.04,
+      "trades": 149,
+      "winPct": 50.34,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        2.87,
+        13.99,
+        -16.33
+      ],
+      "net7d": 27.23,
+      "pct7d": 2.27,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 1,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 0.3,
+      "pct30d": 0.03,
+      "trades": 169,
+      "winPct": 50.3,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -49.07,
+        48.2,
+        1.18
+      ],
+      "net7d": 40.93,
+      "pct7d": 3.41,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": 0.28,
+      "pct30d": 0.02,
+      "trades": 143,
+      "winPct": 49.65,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -0.34,
+        -1.93,
+        2.55
+      ],
+      "net7d": 24.17,
+      "pct7d": 2.01,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -0.09,
+      "pct30d": -0.01,
+      "trades": 129,
+      "winPct": 49.61,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        42.84,
+        -31.1,
+        -11.83
+      ],
+      "net7d": 30.9,
+      "pct7d": 2.58,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -0.13,
+      "pct30d": -0.01,
+      "trades": 149,
+      "winPct": 49.66,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -45.02,
+        18.63,
+        26.26
+      ],
+      "net7d": 44.82,
+      "pct7d": 3.73,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -0.14,
+      "pct30d": -0.01,
+      "trades": 121,
+      "winPct": 50.41,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        18.16,
+        -23.68,
+        5.38
+      ],
+      "net7d": 34,
+      "pct7d": 2.83,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -0.35,
+      "pct30d": -0.03,
+      "trades": 125,
+      "winPct": 50.4,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        32.14,
+        -2.47,
+        -30.02
+      ],
+      "net7d": 5.71,
+      "pct7d": 0.48,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -0.55,
+      "pct30d": -0.05,
+      "trades": 127,
+      "winPct": 50.39,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        32.25,
+        -2.82,
+        -29.98
+      ],
+      "net7d": -15.46,
+      "pct7d": -1.29,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -0.72,
+      "pct30d": -0.06,
+      "trades": 142,
+      "winPct": 50.7,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -81.55,
+        81.91,
+        -1.08
+      ],
+      "net7d": 20.52,
+      "pct7d": 1.71,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -0.76,
+      "pct30d": -0.06,
+      "trades": 144,
+      "winPct": 50.69,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -88.42,
+        81.7,
+        5.95
+      ],
+      "net7d": 27.55,
+      "pct7d": 2.3,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -0.86,
+      "pct30d": -0.07,
+      "trades": 146,
+      "winPct": 50.68,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -88.4,
+        74.58,
+        12.96
+      ],
+      "net7d": 34.56,
+      "pct7d": 2.88,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -0.97,
+      "pct30d": -0.08,
+      "trades": 146,
+      "winPct": 50.68,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -67.56,
+        60.66,
+        5.93
+      ],
+      "net7d": 27.53,
+      "pct7d": 2.29,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -1.01,
+      "pct30d": -0.08,
+      "trades": 137,
+      "winPct": 50.36,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        10.76,
+        4.19,
+        -15.96
+      ],
+      "net7d": 26.87,
+      "pct7d": 2.24,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 7,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -1.57,
+      "pct30d": -0.13,
+      "trades": 138,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        17.54,
+        39.66,
+        -58.78
+      ],
+      "net7d": -23.05,
+      "pct7d": -1.92,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -1.79,
+      "pct30d": -0.15,
+      "trades": 132,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        32.12,
+        -23.79,
+        -10.12
+      ],
+      "net7d": 39.7,
+      "pct7d": 3.31,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -1.96,
+      "pct30d": -0.16,
+      "trades": 144,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -3.77,
+        4.28,
+        -2.47
+      ],
+      "net7d": 26.21,
+      "pct7d": 2.18,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -1.96,
+      "pct30d": -0.16,
+      "trades": 153,
+      "winPct": 50.33,
+      "grossR": 0.14,
+      "netR": 0,
+      "blocks": [
+        -39,
+        46.55,
+        -9.51
+      ],
+      "net7d": 26.22,
+      "pct7d": 2.18,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -2.12,
+      "pct30d": -0.18,
+      "trades": 136,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -17.37,
+        11.28,
+        3.97
+      ],
+      "net7d": 39.7,
+      "pct7d": 3.31,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -2.22,
+      "pct30d": -0.18,
+      "trades": 139,
+      "winPct": 49.64,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -5.37,
+        3.66,
+        -0.51
+      ],
+      "net7d": 35.22,
+      "pct7d": 2.94,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 28800,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -2.31,
+      "pct30d": -0.19,
+      "trades": 148,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        3.44,
+        3.93,
+        -9.67
+      ],
+      "net7d": 12.05,
+      "pct7d": 1,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -2.35,
+      "pct30d": -0.2,
+      "trades": 136,
+      "winPct": 48.53,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -46.77,
+        25.32,
+        19.1
+      ],
+      "net7d": 37.39,
+      "pct7d": 3.12,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 3,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -2.44,
+      "pct30d": -0.2,
+      "trades": 140,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -10.77,
+        46.82,
+        -38.48
+      ],
+      "net7d": 4.35,
+      "pct7d": 0.36,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -2.46,
+      "pct30d": -0.21,
+      "trades": 123,
+      "winPct": 49.59,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        32.31,
+        -37.04,
+        2.28
+      ],
+      "net7d": 45.01,
+      "pct7d": 3.75,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -2.52,
+      "pct30d": -0.21,
+      "trades": 150,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -46.28,
+        67.66,
+        -23.9
+      ],
+      "net7d": -2.17,
+      "pct7d": -0.18,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 7,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -2.58,
+      "pct30d": -0.22,
+      "trades": 146,
+      "winPct": 48.63,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -82.81,
+        104.45,
+        -24.23
+      ],
+      "net7d": 7.73,
+      "pct7d": 0.64,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 28800,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -2.78,
+      "pct30d": -0.23,
+      "trades": 154,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -4.03,
+        3.93,
+        -2.68
+      ],
+      "net7d": 19.05,
+      "pct7d": 1.59,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 28800,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -2.99,
+      "pct30d": -0.25,
+      "trades": 132,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        22.86,
+        -9.97,
+        -15.88
+      ],
+      "net7d": 12.86,
+      "pct7d": 1.07,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 1,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -3.27,
+      "pct30d": -0.27,
+      "trades": 149,
+      "winPct": 48.32,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -126.89,
+        132.42,
+        -8.8
+      ],
+      "net7d": 17.68,
+      "pct7d": 1.47,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 3,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -3.51,
+      "pct30d": -0.29,
+      "trades": 144,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -17.87,
+        39.59,
+        -25.23
+      ],
+      "net7d": 24.6,
+      "pct7d": 2.05,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -3.66,
+      "pct30d": -0.31,
+      "trades": 146,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -46.37,
+        39.58,
+        3.12
+      ],
+      "net7d": 31.81,
+      "pct7d": 2.65,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 3,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -4.08,
+      "pct30d": -0.34,
+      "trades": 142,
+      "winPct": 48.59,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -83.17,
+        89.87,
+        -10.79
+      ],
+      "net7d": 22.36,
+      "pct7d": 1.86,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 30,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -4.16,
+      "pct30d": -0.35,
+      "trades": 163,
+      "winPct": 49.69,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        21.08,
+        22.23,
+        -47.47
+      ],
+      "net7d": -4.97,
+      "pct7d": -0.41,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 7,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -4.53,
+      "pct30d": -0.38,
+      "trades": 152,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -74.24,
+        81.89,
+        -12.17
+      ],
+      "net7d": 13.19,
+      "pct7d": 1.1,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 1,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -4.66,
+      "pct30d": -0.39,
+      "trades": 160,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": 0,
+      "blocks": [
+        -18.14,
+        17.91,
+        -4.43
+      ],
+      "net7d": 31.39,
+      "pct7d": 2.62,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -4.73,
+      "pct30d": -0.39,
+      "trades": 132,
+      "winPct": 49.24,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        16.57,
+        24.85,
+        -46.16
+      ],
+      "net7d": -24.53,
+      "pct7d": -2.04,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 30,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 1000,
+          "slPoints": 200
+        },
+        "mode": "hold"
+      },
+      "net30d": -5.05,
+      "pct30d": -0.42,
+      "trades": 111,
+      "winPct": 22.52,
+      "grossR": 0.32,
+      "netR": -0.01,
+      "blocks": [
+        16.44,
+        43.24,
+        -64.72
+      ],
+      "net7d": -81.67,
+      "pct7d": -6.81,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 1,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -5.78,
+      "pct30d": -0.48,
+      "trades": 190,
+      "winPct": 48.95,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -30.34,
+        23.15,
+        1.41
+      ],
+      "net7d": 28.42,
+      "pct7d": 2.37,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 1,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -5.9,
+      "pct30d": -0.49,
+      "trades": 187,
+      "winPct": 49.2,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -50.01,
+        -2.63,
+        46.74
+      ],
+      "net7d": 67.42,
+      "pct7d": 5.62,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -6.51,
+      "pct30d": -0.54,
+      "trades": 129,
+      "winPct": 48.84,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        18.17,
+        -30.15,
+        5.47
+      ],
+      "net7d": 44.28,
+      "pct7d": 3.69,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 1,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -6.78,
+      "pct30d": -0.56,
+      "trades": 167,
+      "winPct": 49.7,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -49.28,
+        51.66,
+        -9.16
+      ],
+      "net7d": 26.66,
+      "pct7d": 2.22,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 7,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -7.14,
+      "pct30d": -0.59,
+      "trades": 148,
+      "winPct": 48.65,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -47.27,
+        74.95,
+        -34.82
+      ],
+      "net7d": -2.86,
+      "pct7d": -0.24,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 28800,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -7.26,
+      "pct30d": -0.61,
+      "trades": 122,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        60.82,
+        -80.43,
+        12.34
+      ],
+      "net7d": 26.87,
+      "pct7d": 2.24,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -7.29,
+      "pct30d": -0.61,
+      "trades": 156,
+      "winPct": 49.36,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -58.01,
+        19.4,
+        31.32
+      ],
+      "net7d": 54.42,
+      "pct7d": 4.53,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 7,
+        "htfSec": 28800,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -7.46,
+      "pct30d": -0.62,
+      "trades": 126,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        74.66,
+        -66.07,
+        -16.05
+      ],
+      "net7d": 5.58,
+      "pct7d": 0.47,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -7.51,
+      "pct30d": -0.63,
+      "trades": 126,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        25.01,
+        -23.8,
+        -8.72
+      ],
+      "net7d": 19.9,
+      "pct7d": 1.66,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -7.52,
+      "pct30d": -0.63,
+      "trades": 127,
+      "winPct": 49.61,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -3.11,
+        -9.68,
+        5.28
+      ],
+      "net7d": 33.9,
+      "pct7d": 2.82,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -7.66,
+      "pct30d": -0.64,
+      "trades": 128,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        32.1,
+        11.52,
+        -51.27
+      ],
+      "net7d": -29.65,
+      "pct7d": -2.47,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 21,
+        "htfSec": 28800,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -7.66,
+      "pct30d": -0.64,
+      "trades": 132,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        74.65,
+        -73.42,
+        -8.89
+      ],
+      "net7d": 5.63,
+      "pct7d": 0.47,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 7,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -7.88,
+      "pct30d": -0.66,
+      "trades": 128,
+      "winPct": 49.22,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        41.67,
+        -23.55,
+        -26.01
+      ],
+      "net7d": 16.72,
+      "pct7d": 1.39,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -7.95,
+      "pct30d": -0.66,
+      "trades": 189,
+      "winPct": 49.21,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        6.52,
+        -24.73,
+        10.27
+      ],
+      "net7d": 29.68,
+      "pct7d": 2.47,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 7,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -8.06,
+      "pct30d": -0.67,
+      "trades": 158,
+      "winPct": 49.37,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -66.8,
+        59.96,
+        -1.22
+      ],
+      "net7d": 31.62,
+      "pct7d": 2.64,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -8.12,
+      "pct30d": -0.68,
+      "trades": 136,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -31.54,
+        25.27,
+        -1.85
+      ],
+      "net7d": 26.87,
+      "pct7d": 2.24,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 30,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -8.19,
+      "pct30d": -0.68,
+      "trades": 138,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -17.5,
+        -2.96,
+        12.27
+      ],
+      "net7d": 26.87,
+      "pct7d": 2.24,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -8.24,
+      "pct30d": -0.69,
+      "trades": 142,
+      "winPct": 49.3,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        35.49,
+        -29.52,
+        -14.2
+      ],
+      "net7d": 24.2,
+      "pct7d": 2.02,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -8.25,
+      "pct30d": -0.69,
+      "trades": 153,
+      "winPct": 49.02,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -49.1,
+        40.58,
+        0.28
+      ],
+      "net7d": 40.33,
+      "pct7d": 3.36,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 1,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -8.64,
+      "pct30d": -0.72,
+      "trades": 181,
+      "winPct": 49.72,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -15.14,
+        -5.29,
+        11.8
+      ],
+      "net7d": 42.89,
+      "pct7d": 3.57,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 7,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -8.88,
+      "pct30d": -0.74,
+      "trades": 123,
+      "winPct": 49.59,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -5.33,
+        -3.85,
+        0.3
+      ],
+      "net7d": 28.93,
+      "pct7d": 2.41,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -8.91,
+      "pct30d": -0.74,
+      "trades": 133,
+      "winPct": 49.62,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -10.33,
+        61.06,
+        -59.63
+      ],
+      "net7d": -9.79,
+      "pct7d": -0.82,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 7,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -8.93,
+      "pct30d": -0.74,
+      "trades": 135,
+      "winPct": 49.63,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -46.14,
+        60.82,
+        -23.61
+      ],
+      "net7d": 12.12,
+      "pct7d": 1.01,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 3,
+        "htfSec": 28800,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -9.12,
+      "pct30d": -0.76,
+      "trades": 135,
+      "winPct": 49.63,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        74.65,
+        -80.55,
+        -3.21
+      ],
+      "net7d": 11.3,
+      "pct7d": 0.94,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 3600,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -9.19,
+      "pct30d": -0.77,
+      "trades": 147,
+      "winPct": 49.66,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        3.24,
+        39.44,
+        -51.87
+      ],
+      "net7d": -9.06,
+      "pct7d": -0.75,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -9.22,
+      "pct30d": -0.77,
+      "trades": 147,
+      "winPct": 49.66,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        3.05,
+        -23.88,
+        11.62
+      ],
+      "net7d": 40.3,
+      "pct7d": 3.36,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 3600,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -9.29,
+      "pct30d": -0.77,
+      "trades": 143,
+      "winPct": 49.65,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -39.03,
+        60.59,
+        -30.85
+      ],
+      "net7d": 11.97,
+      "pct7d": 1,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -9.31,
+      "pct30d": -0.78,
+      "trades": 147,
+      "winPct": 49.66,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -38.86,
+        67.53,
+        -37.97
+      ],
+      "net7d": -9.14,
+      "pct7d": -0.76,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 3,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -9.47,
+      "pct30d": -0.79,
+      "trades": 159,
+      "winPct": 48.43,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -46.39,
+        36.03,
+        0.89
+      ],
+      "net7d": 36.71,
+      "pct7d": 3.06,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 30,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -9.5,
+      "pct30d": -0.79,
+      "trades": 161,
+      "winPct": 49.07,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        36.53,
+        8.66,
+        -54.69
+      ],
+      "net7d": -6.91,
+      "pct7d": -0.58,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -9.5,
+      "pct30d": -0.79,
+      "trades": 154,
+      "winPct": 48.7,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -71.71,
+        47.57,
+        14.64
+      ],
+      "net7d": 40.32,
+      "pct7d": 3.36,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -9.58,
+      "pct30d": -0.8,
+      "trades": 149,
+      "winPct": 49.66,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -18.24,
+        4.07,
+        4.59
+      ],
+      "net7d": 40.31,
+      "pct7d": 3.36,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 7,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -9.72,
+      "pct30d": -0.81,
+      "trades": 153,
+      "winPct": 49.02,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -1.12,
+        16.69,
+        -25.29
+      ],
+      "net7d": 31.62,
+      "pct7d": 2.64,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 7,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -9.9,
+      "pct30d": -0.82,
+      "trades": 155,
+      "winPct": 49.68,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -58.76,
+        33.91,
+        14.95
+      ],
+      "net7d": 45.83,
+      "pct7d": 3.82,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 14,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -9.9,
+      "pct30d": -0.83,
+      "trades": 122,
+      "winPct": 49.18,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        1.87,
+        -10.04,
+        -1.74
+      ],
+      "net7d": 34,
+      "pct7d": 2.83,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 1,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -10.09,
+      "pct30d": -0.84,
+      "trades": 161,
+      "winPct": 49.07,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -16.23,
+        2.21,
+        3.93
+      ],
+      "net7d": 42.72,
+      "pct7d": 3.56,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 4,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "off",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -10.09,
+      "pct30d": -0.84,
+      "trades": 161,
+      "winPct": 48.45,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -21.29,
+        0.26,
+        10.94
+      ],
+      "net7d": 30.63,
+      "pct7d": 2.55,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 30,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -10.1,
+      "pct30d": -0.84,
+      "trades": 148,
+      "winPct": 50,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -44.66,
+        47.24,
+        -12.68
+      ],
+      "net7d": 33.33,
+      "pct7d": 2.78,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -10.45,
+      "pct30d": -0.87,
+      "trades": 152,
+      "winPct": 49.34,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -22.63,
+        40.26,
+        -28.08
+      ],
+      "net7d": -3.64,
+      "pct7d": -0.3,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 5,
+        "pd": 21,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -10.46,
+      "pct30d": -0.87,
+      "trades": 125,
+      "winPct": 48.8,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -12.12,
+        3.5,
+        -1.84
+      ],
+      "net7d": 33.9,
+      "pct7d": 2.82,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 3,
+        "htfSec": 7200,
+        "htfFactor": 2,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -10.5,
+      "pct30d": -0.88,
+      "trades": 143,
+      "winPct": 49.65,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -17.9,
+        4.43,
+        2.96
+      ],
+      "net7d": 31.66,
+      "pct7d": 2.64,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 21,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 14,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -10.64,
+      "pct30d": -0.89,
+      "trades": 145,
+      "winPct": 49.66,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -3.83,
+        11.42,
+        -18.23
+      ],
+      "net7d": 24.6,
+      "pct7d": 2.05,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 2,
+        "htfPd": 1,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "hold"
+      },
+      "net30d": -10.65,
+      "pct30d": -0.89,
+      "trades": 147,
+      "winPct": 49.66,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -17.5,
+        3.93,
+        2.91
+      ],
+      "net7d": 31.62,
+      "pct7d": 2.64,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 3,
+        "pd": 7,
+        "htfSec": 14400,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -10.75,
+      "pct30d": -0.9,
+      "trades": 143,
+      "winPct": 50.35,
+      "grossR": 0.12,
+      "netR": -0.01,
+      "blocks": [
+        -31.34,
+        60.82,
+        -40.23
+      ],
+      "net7d": -4.38,
+      "pct7d": -0.36,
+      "robust": false
+    },
+    {
+      "cfg": {
+        "factor": 2,
+        "pd": 14,
+        "htfSec": 7200,
+        "htfFactor": 3,
+        "htfPd": 7,
+        "macd": "12/26/9",
+        "exit": {
+          "exitMode": "bracket",
+          "tpPoints": 500,
+          "slPoints": 400
+        },
+        "mode": "reverse"
+      },
+      "net30d": -10.76,
+      "pct30d": -0.9,
+      "trades": 154,
+      "winPct": 49.35,
+      "grossR": 0.13,
+      "netR": -0.01,
+      "blocks": [
+        -35.59,
+        40.06,
+        -15.24
+      ],
+      "net7d": 10.49,
+      "pct7d": 0.87,
+      "robust": false
+    }
+  ]
+}
