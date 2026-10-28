@@ -165,7 +165,10 @@ class SuperTrend2Macd1m {
       'Super Trend 2 MACD on the 1m chart: a local SuperTrend (2/21) flip, confirmed by a 2h ' +
       'SuperTrend (2/7, last completed bar) and an SMA MACD (12/26/9), enters with a Maker limit ' +
       'and a 500/400-point reduce-only bracket on Delta. An opposite signal reverses the position.';
-    this.symbol = 'BTCUSD';
+    // Left blank on purpose: the engine sets this to TRADING_SYMBOL on start
+    // (see tradingEngine.applyProductSettings), so the instrument is configured
+    // in one place — .env — and can never disagree with the WebSocket feed.
+    this.symbol = null;
 
     // --- exchange facts, filled in by the engine (applyProductSettings) ---
     this.tickSize = 0.5;

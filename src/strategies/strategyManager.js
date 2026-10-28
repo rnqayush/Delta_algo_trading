@@ -20,7 +20,7 @@ const deltaWebSocket = require('../services/websocket/deltaWebSocket');
 // Put the strategy name exactly as it is returned by getName() and leave it
 // as '' to start nothing automatically.
 // ---------------------------------------------------------------------------
-const ACTIVE_STRATEGY = 'SuperTrend2Macd1m';
+const ACTIVE_STRATEGY = 'OpenCloseCross1m' // 'OpenCloseCross1m' | 'SuperTrend2Macd1m';
 
 const STRATEGY_FOLDER = path.join(__dirname, 'strategies');
 
@@ -99,7 +99,11 @@ async function start(name, options = {}) {
 
   const engine = new TradingEngine({
     strategy,
-    symbol: options.symbol || strategy.symbol,
+    // TRADING_SYMBOL is the single source of truth for the instrument: it drives
+    // the WebSocket subscription, the candle feed, the risk checks and the order
+    // symbol. A strategy's own `symbol` is only a fallback for when the env is
+    // blank; an explicit options.symbol (manual start) still wins.
+    symbol: options.symbol || config.trading.symbol || strategy.symbol,
     intervalMs: useWebSocket ? 0 : options.intervalMs || 5000,
     options: { userId: options.userId || null },
   });

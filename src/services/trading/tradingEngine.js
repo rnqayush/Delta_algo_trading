@@ -8,6 +8,7 @@
 const EventEmitter = require('events');
 const marketService = require('../delta/marketService');
 const orderManager = require('./orderManager');
+const orderService = require('../delta/orderService');
 const positionManager = require('./positionManager');
 const Trade = require('../../models/Trade');
 const config = require('../../config/env');
@@ -280,6 +281,14 @@ class TradingEngine extends EventEmitter {
         strategy.contractValue = Number(product.contract_value) || Number(strategy.contractValue) || 0.001;
       }
       if (strategy.equity !== undefined) strategy.equity = Number(config.strategy.equity) || strategy.equity;
+      // A strategy that sizes a return-on-margin target needs the account's real
+      // leverage, not a guess. Falls back to the product's default_leverage.
+      if (strategy.leverage !== undefined) {
+        strategy.leverage = await orderService.getLeverage({
+          productId: product.id,
+          fallback: Number(product.default_leverage) || 1,
+        });
+      }
       if (strategy.riskPercent !== undefined) strategy.riskPercent = Number(config.strategy.riskPercent);
       if (strategy.rewardPercent !== undefined) {
         strategy.rewardPercent = Number(config.strategy.rewardPercent);
@@ -291,7 +300,10 @@ class TradingEngine extends EventEmitter {
       if (strategy.minContracts !== undefined) {
         strategy.minContracts = Math.max(1, Number(config.strategy.minContracts) || 1);
       }
-      if (strategy.fixedContracts !== undefined) {
+      // Lot size. A strategy that pins its own (fixedContracts > 0) keeps it;
+      // STRATEGY_FIXED_CONTRACTS only fills the gap when it leaves it at 0, and
+      // 0 in both places means "size from equity" (see the strategy's sizing).
+      if (strategy.fixedContracts !== undefined && !(Number(strategy.fixedContracts) > 0)) {
         strategy.fixedContracts = Math.max(0, Number(config.strategy.fixedContracts) || 0);
       }
       // Keep the strategy's slot count identical to the order gate's so the two
@@ -299,11 +311,15 @@ class TradingEngine extends EventEmitter {
       if (strategy.maxConcurrentPositions !== undefined) {
         strategy.maxConcurrentPositions = Math.max(1, Number(config.strategy.maxConcurrentPositions) || 1);
       }
-      if (!strategy.symbol) strategy.symbol = this.symbol;
+      // The order the strategy emits carries `strategy.symbol`, so it must be the
+      // engine's instrument. This is the TRADING_SYMBOL the WebSocket streams —
+      // a hard-coded symbol in the strategy file must never win over it.
+      strategy.symbol = this.symbol;
 
       logger.info(
         `Strategy ${strategy.getName()} configured for ${this.symbol}: ` +
-          `tickSize=${strategy.tickSize} contractValue=${strategy.contractValue} equity=${strategy.equity}`
+          `tickSize=${strategy.tickSize} contractValue=${strategy.contractValue} equity=${strategy.equity} ` +
+          `lots=${strategy.fixedContracts > 0 ? strategy.fixedContracts : 'equity-sized'}`
       );
     } catch (error) {
       logger.warn(`Could not load the product for ${this.symbol}: ${error.message}`);

@@ -24,6 +24,9 @@ module.exports = {
     orders: '/v2/orders',
     order: (orderId) => `/v2/orders/${orderId}`,
     ordersHistory: '/v2/orders/history',
+    // The ACCOUNT's leverage for a product (not the product's default). Read it
+    // so a return-on-margin target can be turned into a price.
+    productLeverage: (productId) => `/v2/products/${productId}/orders/leverage`,
     // Delta India serves positions from the "margined" path; plain /v2/positions
     // replies with a "bad_schema" error.
     positions: '/v2/positions/margined',

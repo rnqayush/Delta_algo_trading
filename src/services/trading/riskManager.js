@@ -61,9 +61,11 @@ async function validate(signal, context = {}) {
     );
   }
 
-  // 6. Maximum daily loss
+  // 6. Maximum daily loss. A strategy may opt out by declaring
+  // `haltOnDailyLoss: false` in its signal meta — the cap is opt-out only, so
+  // anything else (including undefined) keeps it in force.
   const dailyPnl = Number(context.dailyPnl || 0);
-  if (dailyPnl <= -Math.abs(settings.maxDailyLoss)) {
+  if (context.haltOnDailyLoss !== false && dailyPnl <= -Math.abs(settings.maxDailyLoss)) {
     return reject(`Daily loss limit reached (${dailyPnl}). Trading is halted for today.`);
   }
 

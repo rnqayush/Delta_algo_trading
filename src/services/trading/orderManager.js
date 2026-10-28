@@ -690,6 +690,10 @@ async function buildRiskContext(signal, options) {
     // Lets the risk manager exempt closing orders from the entry-throttling
     // checks (max open trades / duplicate window).
     reduceOnly: Boolean(options.reduceOnly),
+    // A strategy can opt out of the daily-loss cap by declaring
+    // `haltOnDailyLoss: false` in the signal meta. Anything else (undefined)
+    // keeps the cap in force, so this is opt-out only.
+    haltOnDailyLoss: signal.meta ? signal.meta.haltOnDailyLoss : undefined,
   };
 }
 

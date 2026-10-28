@@ -4,6 +4,7 @@
 
 const deltaClient = require('./deltaClient');
 const deltaConfig = require('../../config/deltaConfig');
+const logger = require('../../utils/logger');
 const { AppError } = require('../../utils/errorHandler');
 const { generateClientOrderId, normalizeSymbol } = require('../../utils/helpers');
 
@@ -152,10 +153,32 @@ async function getOrderHistory({ symbol, productId, start, end, pageSize } = {})
   return orders;
 }
 
+// The ACCOUNT's leverage setting for a product, e.g. 5 for a 5x account. A
+// strategy uses it to convert a return-on-margin target into an actual price.
+// A failure here must never stop the bot from starting, so it falls back (the
+// product's own default_leverage) and warns instead of throwing.
+async function getLeverage({ productId, fallback = 1 } = {}) {
+  const safeFallback = Number(fallback) > 0 ? Number(fallback) : 1;
+  if (!productId) return safeFallback;
+
+  try {
+    const response = await deltaClient.get(deltaConfig.endpoints.productLeverage(productId));
+    const leverage = Number(extractResult(response, {}).leverage);
+    return leverage > 0 ? leverage : safeFallback;
+  } catch (error) {
+    logger.warn(
+      `Could not read the account leverage for product ${productId} (${error.message}); ` +
+        `assuming ${safeFallback}x`
+    );
+    return safeFallback;
+  }
+}
+
 module.exports = {
   placeOrder,
   cancelOrder,
   getOrder,
   getOpenOrders,
   getOrderHistory,
+  getLeverage,
 };

@@ -6,13 +6,17 @@
 //     1m chart (the script's default "Alternate Resolution" multiplier of 3 only
 //     matters when the chart is not 1m; on a 1m feed the strategy resolution is
 //     the chart, so this runs at 1m).
-//   * LONG  when the close SMMA crosses OVER the open SMMA,
+//   * the cross is read straight off the published rules (close SMMA crossing
+//     the open SMMA) but the resulting side is FADED — see INVERT_SIGNALS below.
+//     The published, non-inverted mapping is:
+//     LONG when the close SMMA crosses OVER the open SMMA,
 //     SHORT when it crosses UNDER.
 //   * the published script ships SL = 0 and TP = 0 (both disabled) and never
 //     calls strategy.close, so an opposite cross simply REVERSES the position.
-//     This port is deliberately the same: it is an always-in-market flip
-//     system with NO stop and NO target. The only exit is the next opposite
-//     cross.
+//     This port keeps that reversal as the only *signal* exit and adds a fixed
+//     protective stop on top — see USE_STOP_LOSS / STOP_LOSS_ROE below. Turn
+//     USE_STOP_LOSS off and it is byte-for-byte the published behaviour: no
+//     stop, no target, the next opposite cross is the only exit.
 //
 // The original also uses `security(..., lookahead=barmerge.lookahead_on)` with
 // "Delay Open/Close MA" = 0, so on TradingView the cross is read from the
@@ -21,8 +25,8 @@
 //
 // WARNING — measured behaviour (7-day BTCUSD backtest): the gross edge is ~0
 // and the strategy flips ~236 times a day, so retail fees turn it sharply
-// negative. It is wired up because it was asked for; it is NOT registered as
-// ACTIVE_STRATEGY, so nothing auto-starts it.
+// negative. The numbers above were measured on BTCUSD. The instrument it trades
+// live comes from TRADING_SYMBOL in .env, not from this file.
 //
 // Bar by bar, on the last CLOSED 1m candle:
 //   1. rebuild the open/close SMMAs (no look-ahead);
@@ -36,6 +40,52 @@ const MA_LEN = 8;
 
 // The SMMA needs 8 closes plus one prior bar for the cross comparison.
 const MIN_BARS = 20;
+
+// Daily-loss kill switch for THIS strategy only.
+//   true  -> obey RISK_MAX_DAILY_LOSS: once the day's realised loss crosses the
+//            cap every order for this strategy is rejected ("Trading is halted
+//            for today"), the flip included.
+//   false -> keep trading no matter what the day's P&L is. Nothing else in the
+//            risk manager is relaxed — only the daily-loss check.
+const HALT_ON_DAILY_LOSS = false;
+
+// Contrarian mode. The cross is used as a FADE trigger:
+//   true  -> a bull cross (close SMMA over open SMMA) opens a SHORT, a bear
+//            cross opens a LONG.
+//   false -> the published behaviour (bull cross long, bear cross short).
+// The flip is applied to the side we intend to HOLD (signalSide), never to the
+// order action — buildEntry still does BUY-for-long / SELL-for-short. That keeps
+// `signalSide === position.side`, which is what the reverse-on-opposite-cross
+// test compares; inverting at the order instead would make every position look
+// reversed to itself and close on its own first tick.
+const INVERT_SIGNALS = true;
+
+// Order size in CONTRACTS (Delta "lots"). This is the size every entry sends:
+//   > 0 -> that exact number of contracts, and it WINS over
+//          STRATEGY_FIXED_CONTRACTS in .env (which is ignored for this strategy).
+//   = 0 -> fall back to STRATEGY_FIXED_CONTRACTS, and if that is 0 as well, size
+//          from percent_of_equity (10% notional), floored at minContracts.
+// Keep it inside RISK_MAX_ORDER_QUANTITY / RISK_MAX_POSITION_SIZE or the risk
+// manager will reject the order.
+const LOTS = 2
+
+// Protective stop loss, and the switch that turns it on.
+//
+//   USE_STOP_LOSS = true  -> every entry carries a reduce-only stop that Delta
+//                            rests for the position at STOP_LOSS_ROE of the
+//                            money the trade uses.
+//   USE_STOP_LOSS = false -> the published behaviour: no stop at all, the next
+//                            opposite cross is the only exit.
+//
+// STOP_LOSS_ROE is a loss on the MONEY INVESTED (the blocked margin), not a
+// price move. Delta blocks margin = notional / leverage, so losing 10% of it is
+// a price move of
+//      0.10 / leverage
+// against the position — 2% at 5x, 0.5% at 20x. The account's REAL leverage is
+// read from Delta at startup (tradingEngine.applyProductSettings), never assumed
+// here, so the stop is correct for whatever leverage the instrument is set to.
+const USE_STOP_LOSS = false;
+const STOP_LOSS_ROE = 0.1;
 
 // ---------------------------------------------------------------------------
 // Indicators — identical maths to backtest/research-occ-cross.js
@@ -64,19 +114,28 @@ class OpenCloseCross1m {
   constructor() {
     this.name = 'OpenCloseCross1m';
     this.description =
-      'Open Close Cross (TradingView R5.1) on the 1m chart: SMMA(8) of the close crossing SMMA(8) ' +
-      'of the open flips the position. An always-in reversal system — no stop, no target, the next ' +
-      'opposite cross is the only exit.';
-    this.symbol = 'BTCUSD';
+      'Open Close Cross (TradingView R5.1) on the 1m chart, traded contrarian: SMMA(8) of the ' +
+      'close crossing SMMA(8) of the open is faded, so a bull cross opens a short and a bear cross ' +
+      'a long. An always-in reversal system — the next opposite cross reverses the position, and ' +
+      'every entry also rests a reduce-only stop at 10% of the money the trade uses.';
+    // Left blank on purpose: the engine sets this to TRADING_SYMBOL on start
+    // (see tradingEngine.applyProductSettings), so the instrument is configured
+    // in one place — .env — and can never disagree with the WebSocket feed.
+    this.symbol = null;
 
     // --- exchange facts, filled in by the engine (applyProductSettings) ---
-    this.tickSize = 0.5;
-    this.contractValue = 0.001;
+    this.tickSize = 0.05;
+    this.contractValue = 0.01;
     this.equity = 1000;
     this.maxNotionalEquity = 3;
     this.minContracts = 1;
-    this.fixedContracts = 0;
+    // Explicit lot size — see the LOTS constant above.
+    this.fixedContracts = Math.max(0, Math.floor(LOTS));
     this.maxConcurrentPositions = 1;
+    // The account's leverage for the instrument, read from Delta at startup. It
+    // is what turns the return-on-margin stop below into a price. The engine
+    // overwrites this; 1 means "no leverage" (a 10% ROE would be a 10% move).
+    this.leverage = 1;
 
     // The script's default_qty_type = percent_of_equity, default_qty_value = 10.
     // With no stop there is no risk-per-trade to size from, so this is the
@@ -94,13 +153,15 @@ class OpenCloseCross1m {
     this.lastBarTime = 0; // last closed 1m bar already evaluated
     this.closeMA = null;
     this.openMA = null;
-    this.signalSide = null; // 'long' | 'short' — the most recent cross
+    this.lastCross = null; // 'bull' | 'bear' — direction of the most recent cross
+    this.signalSide = null; // 'long' | 'short' — the side to hold after that cross
     this.entryDone = false; // whether that cross has already been acted on
     this.lastReason = '';
   }
 
   // percent_of_equity sizing (10% of equity notional), floored at the exchange
-  // minimum. A fixed size (set from the env) bypasses the maths entirely.
+  // minimum. An explicit lot size (LOTS, else STRATEGY_FIXED_CONTRACTS) bypasses
+  // the maths entirely.
   sizeContracts(entry) {
     const fixed = Number(this.fixedContracts) || 0;
     if (fixed > 0) return Math.max(1, Math.floor(fixed));
@@ -114,12 +175,30 @@ class OpenCloseCross1m {
     return Math.max(Number(this.minContracts) || 1, size);
   }
 
-  // Rounds a price to the product's tick size (BTCUSD = 0.5).
+  // Rounds a price to the product's tick size (ETHUSD = 0.05).
   snap(price) {
     const tick = Number(this.tickSize) || 0;
     if (!(tick > 0)) return Number(price);
     const decimals = (String(tick).split('.')[1] || '').length;
     return Number((Math.round(price / tick) * tick).toFixed(decimals));
+  }
+
+  // Formats a price for log/reason strings at the product's own precision, so it
+  // reads correctly for any TRADING_SYMBOL (BTCUSD 0.5 -> 1 dp, AINUSD 0.00001
+  // -> 5 dp) instead of collapsing to "0.0".
+  fmt(price) {
+    const tick = Number(this.tickSize) || 0;
+    const decimals = tick > 0 ? (String(tick).split('.')[1] || '').length : 2;
+    return Number(price).toFixed(decimals);
+  }
+
+  // The protective stop price: STOP_LOSS_ROE of the margin the trade blocks,
+  // converted into a price move (see the constants above). It sits on the
+  // adverse side of the entry.
+  stopPrice(side, entry) {
+    const dir = side === 'long' ? 1 : -1;
+    const leverage = Number(this.leverage) > 0 ? Number(this.leverage) : 1;
+    return this.snap(Number(entry) * (1 - (dir * STOP_LOSS_ROE) / leverage));
   }
 
   // Rebuilds both SMMAs once per closed bar.
@@ -142,16 +221,21 @@ class OpenCloseCross1m {
       return `SMMA(${MA_LEN}) not warmed up on this bar`;
     }
 
+    // The cross itself is read straight off the published rules. Only the side
+    // we then choose to hold is flipped (INVERT_SIGNALS), so the entry/exit flow
+    // downstream is unchanged.
     if (c0 <= o0 && c1 > o1) {
-      this.signalSide = 'long';
+      this.lastCross = 'bull';
+      this.signalSide = INVERT_SIGNALS ? 'short' : 'long';
       this.entryDone = false;
-      return `fresh long cross (close ${c1.toFixed(1)} > open ${o1.toFixed(1)})`;
+      return `bull cross (close ${this.fmt(c1)} > open ${this.fmt(o1)}) -> hold ${this.signalSide}`;
     }
 
     if (c0 >= o0 && c1 < o1) {
-      this.signalSide = 'short';
+      this.lastCross = 'bear';
+      this.signalSide = INVERT_SIGNALS ? 'long' : 'short';
       this.entryDone = false;
-      return `fresh short cross (close ${c1.toFixed(1)} < open ${o1.toFixed(1)})`;
+      return `bear cross (close ${this.fmt(c1)} < open ${this.fmt(o1)}) -> hold ${this.signalSide}`;
     }
 
     return 'no open/close cross on this bar';
@@ -159,11 +243,15 @@ class OpenCloseCross1m {
 
   // Places one market entry. The original uses strategy.entry (a market order),
   // and an always-in reversal cannot safely rest an unfilled limit, so this
-  // stays a market order. No stop/target travels with it — that is the
-  // published behaviour (SL = 0, TP = 0).
+  // stays a market order. When USE_STOP_LOSS is on, the entry also carries a
+  // fixed reduce-only stop; with it off nothing travels with the order, which is
+  // the published behaviour (SL = 0, TP = 0).
   buildEntry(side, last) {
     const entry = this.snap(last.close);
     if (!(entry > 0)) return { action: 'HOLD', reason: 'no valid entry price' };
+
+    const stop = USE_STOP_LOSS ? this.stopPrice(side, entry) : 0;
+    if (USE_STOP_LOSS && !(stop > 0)) return { action: 'HOLD', reason: 'stop loss is not a valid price' };
 
     const quantity = this.sizeContracts(entry);
     if (!(quantity > 0)) return { action: 'HOLD', reason: 'size rounds to zero contracts' };
@@ -176,14 +264,26 @@ class OpenCloseCross1m {
       quantity,
       price: entry,
       orderType: 'market_order',
+      // No target travels with this entry, so it is not an attached Delta
+      // bracket; the position manager rests the stop as its own reduce-only
+      // stop_market_order once the entry fills (orderManager.placeProtectiveStop)
+      // and its level is fixed — nothing trails it.
+      stopLoss: USE_STOP_LOSS ? stop : undefined,
       strategyName: this.name,
       reason:
-        `OpenCloseCross ${side}: the close SMMA(${MA_LEN}) crossed ` +
-        `${side === 'long' ? 'over' : 'under'} the open SMMA(${MA_LEN}) at ${entry} ` +
-        '(market entry, no bracket — the next opposite cross reverses)',
+        `OpenCloseCross ${side}${INVERT_SIGNALS ? ` (faded the ${this.lastCross || 'cross'})` : ''}: ` +
+        `close SMMA(${MA_LEN}) crossed ${this.lastCross === 'bear' ? 'under' : 'over'} the open ` +
+        `SMMA(${MA_LEN}) at ${entry} (market entry, ` +
+        (USE_STOP_LOSS
+          ? `SL ${stop} (-${(STOP_LOSS_ROE * 100).toFixed(0)}% on margin, ` +
+          `${Number(this.leverage) > 0 ? this.leverage : 1}x), the next opposite cross reverses)`
+          : 'no bracket — the next opposite cross reverses)'),
       meta: {
         exitMode: 'reverse',
         family: 'open-close-cross-1m',
+        // Carried into the risk context so the daily-loss cap can be opted out
+        // of for this strategy (see HALT_ON_DAILY_LOSS above).
+        haltOnDailyLoss: HALT_ON_DAILY_LOSS,
       },
     };
   }

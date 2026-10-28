@@ -447,10 +447,13 @@ async function manageSimplePosition(position, { price, candles1m = [], candles15
     await trailStop(position, candles);
   }
 
+  // A position carrying no stop (null/0) has nothing to test. Without the
+  // `stop > 0` guard Number(null) reads as 0, and a stop at 0 fires on every
+  // short on its first tick.
   const stop = Number(position.stopLoss);
 
   // 1. Hard stop (taker / market exit).
-  if (Number.isFinite(stop) && (side === 'long' ? mark <= stop : mark >= stop)) {
+  if (stop > 0 && (side === 'long' ? mark <= stop : mark >= stop)) {
     return exitPosition(position, mark, `Stop loss at ${stop}`, userId);
   }
 
@@ -494,7 +497,12 @@ async function closePosition({ symbol, price, userId = null, positionId = null }
       orderType: 'market_order',
       strategyName: position.strategyName,
       reason: `Closing the ${position.side} position on ${position.symbol}`,
-      meta: { positionId: String(position._id) },
+      meta: {
+        positionId: String(position._id),
+        // Inherit the entry's daily-loss stance, so a strategy that opted out
+        // can still flatten (its only exit) after the cap has tripped.
+        haltOnDailyLoss: position.plan ? position.plan.haltOnDailyLoss : undefined,
+      },
     },
     { userId, reduceOnly: true, fetchReferencePrice: false }
   );
