@@ -129,7 +129,11 @@ function buildSignals(alt) {
 // simulator  (always-in-market reversal — the published model)
 // ---------------------------------------------------------------------------
 
-function simulate(alt, sigs, maker) {
+// `invert` reproduces the live strategy's INVERT_SIGNALS = true: the cross is
+// FADED, so a bull cross is held as a short and a bear cross as a long. Because
+// this is an always-in reversal, the faded P&L is the exact mirror of the
+// published one (gross flips sign, costs are unchanged).
+function simulate(alt, sigs, maker, invert = false) {
   const n = alt.length;
   const feeEntry = maker ? CFG.feeMaker : CFG.feeTaker;
   const slipEntry = maker ? 0 : CFG.slippage;
@@ -179,8 +183,9 @@ function simulate(alt, sigs, maker) {
   };
 
   for (let i = 1; i < n; i += 1) {
-    const s = sigs[i];
-    if (!s) continue;
+    const raw = sigs[i];
+    if (!raw) continue;
+    const s = invert ? (raw === 'long' ? 'short' : 'long') : raw;
     if (pos && pos.side === s) continue; // pyramiding = 0
     if (pos) closePos(alt[i], 'flip');
     openPos(s, alt[i]);
@@ -324,22 +329,24 @@ function main() {
   console.log(` strategy bars in window: ${barsInWin}`);
   console.log(` crosses in window: ${wLong} long / ${wShort} short`);
 
-  console.log('\n  model    trades  win%     gross%    costs%      net%     PF  hold(bars)   grossPts   avgPts');
+  console.log('\n  model  side        trades  win%     gross%    costs%      net%     PF  hold(bars)   grossPts   avgPts');
   for (const [label, maker] of [['taker', false], ['maker', true]]) {
-    const trades = simulate(alt, built.sigs, maker);
-    const m = metrics(inWindow(trades, lastTime, args.days));
-    if (!m.n) { console.log(`  ${label.padEnd(8)}  no trades`); continue; }
-    console.log(
-      `  ${label.padEnd(8)}  ${String(m.n).padStart(5)}  ${pct(m.winPct).padStart(6)}  ` +
-        `${f2((m.gross / CFG.initialEquity) * 100).padStart(8)}  ${('-'.concat(((m.costs / CFG.initialEquity) * 100).toFixed(2))).padStart(8)}  ` +
-        `${f2((m.net / CFG.initialEquity) * 100).padStart(8)}  ${(m.pf === Infinity ? 'inf' : m.pf.toFixed(2)).padStart(5)}  ` +
-        `${m.avgBars.toFixed(0).padStart(8)}  ${f2(m.grossPts).padStart(10)}  ${f2(m.grossPts / m.n).padStart(8)}`,
-    );
+    for (const [tag, invert] of [['as-written', false], ['FADED(live)', true]]) {
+      const trades = simulate(alt, built.sigs, maker, invert);
+      const m = metrics(inWindow(trades, lastTime, args.days));
+      if (!m.n) { console.log(`  ${label.padEnd(6)} ${tag.padEnd(11)}  no trades`); continue; }
+      console.log(
+        `  ${label.padEnd(6)} ${tag.padEnd(11)}  ${String(m.n).padStart(5)}  ${pct(m.winPct).padStart(6)}  ` +
+          `${f2((m.gross / CFG.initialEquity) * 100).padStart(8)}  ${('-'.concat(((m.costs / CFG.initialEquity) * 100).toFixed(2))).padStart(8)}  ` +
+          `${f2((m.net / CFG.initialEquity) * 100).padStart(8)}  ${(m.pf === Infinity ? 'inf' : m.pf.toFixed(2)).padStart(5)}  ` +
+          `${m.avgBars.toFixed(0).padStart(8)}  ${f2(m.grossPts).padStart(10)}  ${f2(m.grossPts / m.n).padStart(8)}`,
+      );
+    }
   }
 
   if (args.daily) {
-    console.log('\n(reversal = published model; daily shown for TAKER)');
-    printDaily(inWindow(simulate(alt, built.sigs, false), lastTime, args.days));
+    console.log('\n(FADED = live INVERT_SIGNALS; daily shown for TAKER)');
+    printDaily(inWindow(simulate(alt, built.sigs, false, true), lastTime, args.days));
   }
   console.log('');
 }
