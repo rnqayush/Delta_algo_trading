@@ -20,7 +20,7 @@ const deltaWebSocket = require('../services/websocket/deltaWebSocket');
 // Put the strategy name exactly as it is returned by getName() and leave it
 // as '' to start nothing automatically.
 // ---------------------------------------------------------------------------
-const ACTIVE_STRATEGY = 'OpenCloseCross1m' // 'OpenCloseCross1m' | 'SuperTrend2Macd1m';
+const ACTIVE_STRATEGY ='OpenCloseCross1m'//'PivotReversal1m' //'MacdCci15m'//'FractalBreakout1m' // 'OCC_AYUSH' | 'OpenCloseCross1m' | 'SuperTrend2Macd1m' | 'TRSRating5m' | 'MacdCci1m' | 'MacdCci3m' | 'FractalBreakout1m' | 'PivotReversal1m' | 'BestAtrStop1m';
 
 const STRATEGY_FOLDER = path.join(__dirname, 'strategies');
 

@@ -90,6 +90,8 @@ const config = {
     // How often the engine re-evaluates the strategy and manages positions.
     evaluateIntervalMs: toNumber(process.env.STRATEGY_EVALUATE_INTERVAL_MS, 3000),
     candles15mCount: toNumber(process.env.STRATEGY_CANDLES_15M, 300),
+    // 3m feed for strategies whose base timeframe is 3m. 0 disables the request.
+    candles3mCount: toNumber(process.env.STRATEGY_CANDLES_3M, 0),
     // 5m feed for strategies whose base timeframe is 5m. 0 disables the extra
     // request, so 15m/30m configs never pay for a series they do not use.
     candles5mCount: toNumber(process.env.STRATEGY_CANDLES_5M, 0),

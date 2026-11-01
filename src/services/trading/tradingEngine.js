@@ -39,14 +39,17 @@ class TradingEngine extends EventEmitter {
     this.stats = { ticks: 0, signals: 0, executed: 0, rejected: 0, errors: 0 };
 
     // Closed-candle context handed to the strategy (refreshed on bar close).
-    // The 5m/1m feeds are only fetched when their count is > 0 (5m/1m strategies).
+    // The 1m/3m/5m feeds are only fetched when their count is > 0.
     this.candles1m = [];
+    this.candles3m = [];
     this.candles5m = [];
     this.candles15m = [];
     this.candles1h = [];
     this.candleCache = {
       fetchedAt1: 0,
       bar1: null,
+      fetchedAt3: 0,
+      bar3: null,
       fetchedAt5: 0,
       bar5: null,
       fetchedAt15: 0,
@@ -329,6 +332,7 @@ class TradingEngine extends EventEmitter {
   async refreshMarketContext() {
     const now = Date.now();
     const bar1 = Math.floor(now / (60 * 1000));
+    const bar3 = Math.floor(now / (3 * 60 * 1000));
     const bar5 = Math.floor(now / (5 * 60 * 1000));
     const bar15 = Math.floor(now / (15 * 60 * 1000));
     const bar1h = Math.floor(now / (60 * 60 * 1000));
@@ -339,6 +343,12 @@ class TradingEngine extends EventEmitter {
       this.candles1m = await this.fetchCandles('1m', config.strategy.candles1mCount, 60 * 1000);
       this.candleCache.bar1 = bar1;
       this.candleCache.fetchedAt1 = now;
+    }
+
+    if (config.strategy.candles3mCount > 0 && (this.candleCache.bar3 !== bar3 || now - this.candleCache.fetchedAt3 > 30000)) {
+      this.candles3m = await this.fetchCandles('3m', config.strategy.candles3mCount, 3 * 60 * 1000);
+      this.candleCache.bar3 = bar3;
+      this.candleCache.fetchedAt3 = now;
     }
 
     if (config.strategy.candles5mCount > 0 && (this.candleCache.bar5 !== bar5 || now - this.candleCache.fetchedAt5 > 60000)) {
@@ -428,6 +438,7 @@ class TradingEngine extends EventEmitter {
       ...ticker,
       ticker,
       candles1m: this.candles1m,
+      candles3m: this.candles3m,
       candles5m: this.candles5m,
       candles15m: this.candles15m,
       candles1h: this.candles1h,
