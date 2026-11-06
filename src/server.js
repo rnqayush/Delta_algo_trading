@@ -97,7 +97,23 @@ async function startServer() {
   startRealtime();
 
   // Start the strategy named in ACTIVE_STRATEGY (src/strategies/strategyManager.js).
-  await strategyManager.startActiveStrategy();
+  const strategyStatus = await strategyManager.startActiveStrategy();
+
+  // A configured strategy that did not start must fail the boot, not be ignored:
+  // startActiveStrategy() returns null when it swallows an error, which would
+  // otherwise leave the server up and silently not trading.
+  if (strategyManager.ACTIVE_STRATEGY && !strategyStatus) {
+    throw new Error(`active strategy "${strategyManager.ACTIVE_STRATEGY}" failed to start`);
+  }
+
+  // Single always-visible startup line. Written straight to stdout (not through
+  // `logger`) on purpose: LOG_LEVEL=error mutes info/warn, so this is the one
+  // line that confirms a successful boot from `pm2 logs` / `journalctl -u`.
+  process.stdout.write(
+    `[${new Date().toISOString()}] RUNNING — strategy=${strategyStatus ? strategyStatus.strategy : 'none'} ` +
+      `symbol=${strategyStatus ? strategyStatus.symbol : config.trading.symbol} ` +
+      `mode=${config.trading.mode.toUpperCase()} port=${config.port}\n`
+  );
 
   const shutdown = async (signal) => {
     logger.info(`${signal} received — shutting down gracefully`);

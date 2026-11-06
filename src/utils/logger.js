@@ -1,5 +1,7 @@
 // Very small logger with two jobs:
-//   1. print timestamped, readable log lines
+//   1. print timestamped ERROR lines to the console — errors and nothing else,
+//      so the app stays quiet; set LOG_LEVEL (info / warn / debug) to bring the
+//      other levels back when you need them
 //   2. make sure secrets (API keys, tokens, passwords) are never printed
 
 const util = require('util');
@@ -7,9 +9,10 @@ const util = require('util');
 const SENSITIVE_KEY = /(secret|password|passwd|token|signature|apikey|api_key|api-key|authorization|jwt)/i;
 const LEVELS = { error: 0, warn: 1, info: 2, debug: 3 };
 
+// Errors only by default. LOG_LEVEL can opt back in to warn / info / debug.
 function resolveLevel() {
-  const wanted = (process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug')).toLowerCase();
-  return LEVELS[wanted] === undefined ? LEVELS.info : LEVELS[wanted];
+  const wanted = (process.env.LOG_LEVEL || 'error').toLowerCase();
+  return LEVELS[wanted] === undefined ? LEVELS.error : LEVELS[wanted];
 }
 
 const currentLevel = resolveLevel();
