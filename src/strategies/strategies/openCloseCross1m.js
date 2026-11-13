@@ -11,7 +11,11 @@
 //     SHORT when it crosses UNDER.
 //   * the published script ships SL = 0 and TP = 0 (both disabled) and never
 //     calls strategy.close, so an opposite cross simply REVERSES the position.
-//     This port keeps that reversal as its only exit: no stop, no target.
+//     This port keeps that reversal but ADDS risk exits, because a study of
+//     this strategy's own realised trades showed the whole drawdown sits in a
+//     few long-held trades: a fixed ATR stop (rests on the exchange), a time
+//     stop, and a loss cooldown that skips the trade right after a loser.
+//     See RISK CONTROLS below.
 //
 // The original also uses `security(..., lookahead=barmerge.lookahead_on)` with
 // "Delay Open/Close MA" = 0, so on TradingView the cross is read from the
@@ -29,6 +33,8 @@
 //      holding the other side -> close at market (reduce-only) and let the
 //      next cycle open the reverse leg;
 //      already holding the signal's side -> stand down.
+
+const { atr } = require('../../utils/indicators');
 
 const MA_LEN = 8;
 
@@ -63,6 +69,45 @@ const INVERT_SIGNALS = true;
 const LOTS = 1;
 
 // ---------------------------------------------------------------------------
+// RISK CONTROLS
+// ---------------------------------------------------------------------------
+// Measured on this strategy's own closed trades: it wins ~58% of the time but
+// the average loss is ~3x the average win, and the five worst trades erased
+// more than every winner combined. The damage was concentrated in trades that
+// were held for 15-35 minutes (avg loser 13.6 min vs avg winner 5.6 min) with
+// no stop, entered at high volatility (the two biggest live losses fired at
+// ATR(14) ~= 1.2% and 1.9% of price). These settings cap exactly that.
+
+// Fixed stop placed at entry: distance = ATR_STOP_MULT x ATR(ATR_PERIOD) on the
+// 1m chart. It travels on the signal as `stopLoss`, so orderManager rests it on
+// the exchange as a reduce-only stop_market_order (and the position manager
+// mirrors it locally in paper mode), so the position stays protected even if
+// this process dies.
+const ATR_PERIOD = 14;
+const ATR_STOP_MULT = 1;
+
+// Time stop: flatten at market once the position has been open this many
+// minutes. The published script has no time exit at all, so a losing trade is
+// held until the cross comes back — which is what produced the -18/-21 minute
+// tail losers. Set to 0 to disable.
+const TIME_STOP_MIN = 10;
+
+// Volatility-aware sizing: when ATR(14) is at or above HIGH_VOL_ATR_PCT percent
+// of price the entry is "high volatility" and the lot size is multiplied by
+// HIGH_VOL_SIZE_FACTOR (floored at 1 contract). Below the threshold the size is
+// untouched.
+const HIGH_VOL_ATR_PCT = 1.0;
+const HIGH_VOL_SIZE_FACTOR = 0.5;
+
+// Loss cooldown: once a trade closes at a loss, stand down for this many
+// minutes before the next entry is allowed. This is an always-in reversal
+// system, so without it the very next cross re-enters — often straight back
+// into the same chop that just stopped the trade out. When the engine tracks
+// several instruments the clock is SHARED, so a loser on any of them freezes
+// the whole portfolio. Set to 0 to disable.
+const LOSS_COOLDOWN_MIN = 15;
+
+// ---------------------------------------------------------------------------
 // Indicators
 // ---------------------------------------------------------------------------
 
@@ -91,8 +136,8 @@ class OpenCloseCross1m {
     this.description =
       'Open Close Cross (TradingView R5.1) on the 1m chart: SMMA(8) of the close crossing SMMA(8) ' +
       'of the open is taken the published way — a bull cross opens a long, a bear cross a short. ' +
-      'An always-in reversal system with no stop and no target: the next opposite cross reverses ' +
-      'the position.';
+      'An always-in reversal system whose primary exit is the next opposite cross, plus a fixed ' +
+      'ATR stop and a time stop (see RISK CONTROLS).';
     // Left blank on purpose: the engine sets this to TRADING_SYMBOL on start
     // (see tradingEngine.applyProductSettings), so the instrument is configured
     // in one place — .env — and can never disagree with the WebSocket feed.
@@ -111,8 +156,8 @@ class OpenCloseCross1m {
     this.leverage = 1;
 
     // The script's default_qty_type = percent_of_equity, default_qty_value = 10.
-    // With no stop there is no risk-per-trade to size from, so this is the
-    // sizing rule the original uses.
+    // Sizing stays the published percent-of-equity rule; the ATR risk controls
+    // only squeeze it further on high-volatility entries (volatilityAdjustedSize).
     this.notionalPercent = 0.1;
 
     this.reset();
@@ -120,6 +165,13 @@ class OpenCloseCross1m {
 
   getName() {
     return this.name;
+  }
+
+  // A fresh instance carrying the same settings but its own cross/ATR state.
+  // The engine builds one per instrument when TRADING_SYMBOLS tracks several
+  // at once, since the SMMA/ATR and tick size are all per instrument.
+  newInstance() {
+    return new OpenCloseCross1m();
   }
 
   reset() {
@@ -130,6 +182,16 @@ class OpenCloseCross1m {
     this.signalSide = null; // 'long' | 'short' — the side to hold after that cross
     this.entryDone = false; // whether that cross has already been acted on
     this.lastReason = '';
+    this.atr = null; // ATR(ATR_PERIOD) on the last closed bar, in price units
+    this.atrPct = null; // the same ATR as a percentage of price
+    this.entryAtMs = null; // when the current position was opened (time stop)
+    // Loss cooldown clock. It lives in an OBJECT so the instances the engine
+    // runs for several instruments share ONE clock — a loser on any instrument
+    // freezes the whole portfolio. Set untilMs = 0 to disable.
+    if (!this.cooldown) this.cooldown = { untilMs: 0 };
+    this.cooldown.untilMs = 0;
+    this.openSide = null; // side of the position we last saw open (close scoring)
+    this.openEntryPrice = null; // its entry price, used to score the close
   }
 
   // percent_of_equity sizing (10% of equity notional), floored at the exchange
@@ -146,6 +208,15 @@ class OpenCloseCross1m {
     const notional = (Number(this.equity) || 0) * this.notionalPercent;
     const size = Math.floor(notional / (price * contractValue));
     return Math.max(Number(this.minContracts) || 1, size);
+  }
+
+  // Scales the base size down for high-volatility entries (see HIGH_VOL_* above).
+  // A missing ATR leaves the size untouched — the filter is an add-on, never a
+  // reason to refuse a trade.
+  volatilityAdjustedSize(baseSize) {
+    const atrPct = Number(this.atrPct);
+    if (!(atrPct >= HIGH_VOL_ATR_PCT)) return baseSize;
+    return Math.max(1, Math.floor(baseSize * HIGH_VOL_SIZE_FACTOR));
   }
 
   // Rounds a price to the product's tick size (ETHUSD = 0.05).
@@ -165,10 +236,17 @@ class OpenCloseCross1m {
     return Number(price).toFixed(decimals);
   }
 
-  // Rebuilds both SMMAs once per closed bar.
+  // Rebuilds both SMMAs (and the ATR the risk controls need) once per closed bar.
   computeContext(candles) {
     this.closeMA = smma(candles.map((c) => c.close), MA_LEN);
     this.openMA = smma(candles.map((c) => c.open), MA_LEN);
+
+    // Wilder ATR over the same closed candles, taken from the shared indicator
+    // module so a live value matches the backtest exactly.
+    const atrValue = Number(atr(candles, ATR_PERIOD).pop());
+    this.atr = Number.isFinite(atrValue) && atrValue > 0 ? atrValue : null;
+    const price = Number(candles[candles.length - 1].close);
+    this.atrPct = this.atr && price > 0 ? (this.atr / price) * 100 : null;
   }
 
   // Looks for an open/close crossover on the last closed bar. Sets signalSide
@@ -207,16 +285,28 @@ class OpenCloseCross1m {
 
   // Places one market entry. The original uses strategy.entry (a market order),
   // and an always-in reversal cannot safely rest an unfilled limit, so this
-  // stays a market order. SL = 0 and TP = 0 in the script, so nothing travels
-  // with the order — the next opposite cross is the only exit.
+  // stays a market order. The entry now carries a fixed ATR stop (the original's
+  // SL = 0 is what let single trades cost 3x an average win); the next opposite
+  // cross still reverses.
   buildEntry(side, last) {
     const entry = this.snap(last.close);
     if (!(entry > 0)) return { action: 'HOLD', reason: 'no valid entry price' };
 
-    const quantity = this.sizeContracts(entry);
+    const quantity = this.volatilityAdjustedSize(this.sizeContracts(entry));
     if (!(quantity > 0)) return { action: 'HOLD', reason: 'size rounds to zero contracts' };
 
+    // Fixed ATR stop, snapped to the tick grid and only used when it is a real
+    // level strictly on the losing side of the entry. A missing/degenerate ATR
+    // leaves the trade unprotected rather than attaching a stop at the entry.
+    let stopLoss = null;
+    if (this.atr && this.atr > 0) {
+      const raw = side === 'long' ? entry - ATR_STOP_MULT * this.atr : entry + ATR_STOP_MULT * this.atr;
+      const snapped = this.snap(raw);
+      if (snapped > 0 && snapped !== entry) stopLoss = snapped;
+    }
+
     this.entryDone = true;
+    this.entryAtMs = Date.now();
 
     return {
       action: side === 'long' ? 'BUY' : 'SELL',
@@ -224,11 +314,13 @@ class OpenCloseCross1m {
       quantity,
       price: entry,
       orderType: 'market_order',
+      stopLoss: stopLoss || undefined,
       strategyName: this.name,
       reason:
         `OpenCloseCross ${side}: close SMMA(${MA_LEN}) crossed ` +
         `${this.lastCross === 'bear' ? 'under' : 'over'} the open SMMA(${MA_LEN}) at ${entry} ` +
-        `— market entry, no bracket, the next opposite cross reverses`,
+        `— market entry, ATR stop ${stopLoss || 'n/a'}, time stop ${TIME_STOP_MIN}m, ` +
+        `the next opposite cross reverses`,
       meta: {
         exitMode: 'reverse',
         family: 'open-close-cross-1m',
@@ -248,6 +340,11 @@ class OpenCloseCross1m {
     const last = candles[candles.length - 1];
     if (!last || !last.time) return { action: 'HOLD', reason: 'no closed 1m candle yet' };
 
+    // Last market price — used to score a position that has just closed (the
+    // loss cooldown below). The ticker price is preferred, the closed bar is
+    // the fallback so the value is never missing.
+    const price = Number(marketData.price) || Number(last.close) || 0;
+
     // One cross decision per closed 1m bar. The decision BELOW still runs on
     // every tick, so a pending close or entry is acted on without waiting a bar.
     if (last.time !== this.lastBarTime) {
@@ -261,6 +358,12 @@ class OpenCloseCross1m {
 
     // --- holding a position -------------------------------------------------
     if (position) {
+      // Remember what we hold so that, when the position later disappears, the
+      // close can be scored and a loss can start the cooldown.
+      if (position.side) this.openSide = position.side;
+      const entryPrice = Number(position.entryPrice);
+      if (entryPrice > 0) this.openEntryPrice = entryPrice;
+
       // An opposite cross is the reverse leg: close at market, re-enter next.
       if (this.signalSide && position.side && position.side !== this.signalSide) {
         return {
@@ -270,12 +373,55 @@ class OpenCloseCross1m {
           reason: `reverse ${position.side} -> ${this.signalSide} (${this.lastReason})`,
         };
       }
+
+      // Time stop: the published script has no time exit, so a trade that goes
+      // against the position is held until the cross finally comes back — the
+      // source of this strategy's long, expensive losers. Flatten at market
+      // once the position has been open TIME_STOP_MIN minutes. The entry time
+      // is in-memory, so a restart mid-position simply skips this exit.
+      if (TIME_STOP_MIN > 0 && this.entryAtMs) {
+        const heldMin = (Date.now() - this.entryAtMs) / 60000;
+        if (heldMin >= TIME_STOP_MIN) {
+          return {
+            action: 'CLOSE',
+            symbol: this.symbol,
+            strategyName: this.name,
+            reason: `time stop: ${position.side} held ${Math.round(heldMin)} min >= ${TIME_STOP_MIN} min`,
+          };
+        }
+      }
+
       // Otherwise the current cross is already the side we hold.
       this.entryDone = true;
       return { action: 'HOLD', reason: `holding ${position.side}; ${this.lastReason}` };
     }
 
     // --- flat ---------------------------------------------------------------
+    // No position: forget the previous entry so the time stop cannot carry over
+    // to the next trade.
+    this.entryAtMs = null;
+
+    // A position we were tracking is now gone, so it closed on the last cycle.
+    // Score it against the current price; if it lost, stand down (loss
+    // cooldown). The price is the live tick, so the sign is an estimate of the
+    // fill rather than Delta's exact one — close enough to gate the next entry.
+    if (this.openSide && this.openEntryPrice > 0) {
+      const direction = this.openSide === 'long' ? 1 : -1;
+      if ((price - this.openEntryPrice) * direction < 0) {
+        this.cooldown.untilMs = Date.now() + LOSS_COOLDOWN_MIN * 60000;
+      }
+    }
+    this.openSide = null;
+    this.openEntryPrice = null;
+
+    // Loss cooldown: do not take the next trade straight after a losing close.
+    // The clock is shared, so this also holds the other tracked instruments back.
+    if (LOSS_COOLDOWN_MIN > 0 && this.cooldown.untilMs > Date.now()) {
+      const minsLeft = Math.ceil((this.cooldown.untilMs - Date.now()) / 60000);
+      return { action: 'HOLD', reason: `loss cooldown: ${minsLeft} min left after a losing trade` };
+    }
+    this.cooldown.untilMs = 0;
+
     if (state.hasLiveOrder) return { action: 'HOLD', reason: 'an entry is already working' };
     if (!this.signalSide) return { action: 'HOLD', reason: this.lastReason || 'no cross yet' };
     if (this.entryDone) return { action: 'HOLD', reason: 'the cross has already been traded' };

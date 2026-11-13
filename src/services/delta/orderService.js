@@ -174,6 +174,24 @@ async function getLeverage({ productId, fallback = 1 } = {}) {
   }
 }
 
+// Sets the ACCOUNT's leverage for a product. Delta expects {"leverage": "N"} on
+// the same path used to read it. Called at startup so a strategy's pinned lot
+// size fits inside the account — unlike getLeverage this one must surface a
+// failure, so it throws instead of falling back.
+async function setLeverage({ productId, leverage } = {}) {
+  if (!productId) throw new AppError('productId is required to set leverage', 400);
+
+  const value = Math.floor(Number(leverage));
+  if (!Number.isFinite(value) || value < 1) {
+    throw new AppError('leverage must be a positive whole number', 400);
+  }
+
+  const response = await deltaClient.post(deltaConfig.endpoints.productLeverage(productId), {
+    leverage: String(value),
+  });
+  return extractResult(response);
+}
+
 module.exports = {
   placeOrder,
   cancelOrder,
@@ -181,4 +199,5 @@ module.exports = {
   getOpenOrders,
   getOrderHistory,
   getLeverage,
+  setLeverage,
 };

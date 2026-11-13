@@ -17,6 +17,16 @@ function toBoolean(value, fallback = false) {
 const tradingMode = (process.env.TRADING_MODE || 'paper').toLowerCase();
 const liveTradingEnabled = toBoolean(process.env.ENABLE_LIVE_TRADING, false);
 
+// The instrument list. TRADING_SYMBOLS (comma-separated) tracks several
+// instruments together with ONE shared position slot; when it is empty the
+// single TRADING_SYMBOL is used. `symbol` stays the primary instrument so
+// single-symbol callers (status lines, API defaults) keep working.
+const tradingSymbols = (process.env.TRADING_SYMBOLS || '')
+  .split(',')
+  .map((symbol) => symbol.trim().toUpperCase())
+  .filter(Boolean);
+const primarySymbol = tradingSymbols[0] || (process.env.TRADING_SYMBOL || 'BTCUSD').trim().toUpperCase();
+
 const config = {
   env: process.env.NODE_ENV || 'development',
   port: toNumber(process.env.PORT, 5000),
@@ -47,8 +57,11 @@ const config = {
     mode: tradingMode, // 'paper' (default) or 'live'
     liveTradingEnabled,
     isLive: tradingMode === 'live' && liveTradingEnabled,
-    // The single instrument the bot trades and streams live data for.
-    symbol: (process.env.TRADING_SYMBOL || 'BTCUSD').trim().toUpperCase(),
+    // The instrument(s) the bot trades and streams live data for. `symbol` is
+    // the primary one; `symbols` is the full tracked list (length 1 when only
+    // TRADING_SYMBOL is set).
+    symbol: primarySymbol,
+    symbols: tradingSymbols.length ? tradingSymbols : [primarySymbol],
   },
 
   risk: {
@@ -100,6 +113,19 @@ const config = {
     // SuperTrend, so the default keeps a full window of 1m candles.
     candles1mCount: toNumber(process.env.STRATEGY_CANDLES_1M, 2000),
     candles1hCount: toNumber(process.env.STRATEGY_CANDLES_1H, 100),
+  },
+
+  // Account leverage management. A strategy that pins its own lot size (e.g.
+  // OpenCloseCross1m's 5 lots) only fits if the ACCOUNT's leverage is high
+  // enough, so the engine sets it at startup instead of hoping it is.
+  leverage: {
+    // When true (and live), the engine asks Delta to raise a product's leverage
+    // so the strategy's pinned lot size fits inside STRATEGY_EQUITY. It never
+    // lowers an already-sufficient leverage and never exceeds the product max.
+    autoSet: toBoolean(process.env.LEVERAGE_AUTO_SET, true),
+    // Headroom on the required margin (1.25 = 25% spare), so a small adverse
+    // move does not immediately push the position into a margin call.
+    buffer: toNumber(process.env.LEVERAGE_BUFFER, 1.25),
   },
 };
 

@@ -10,6 +10,7 @@ const path = require('path');
 const config = require('../config/env');
 const logger = require('../utils/logger');
 const { AppError } = require('../utils/errorHandler');
+const { normalizeSymbol } = require('../utils/helpers');
 const TradingEngine = require('../services/trading/tradingEngine');
 const Strategy = require('../models/Strategy');
 const deltaWebSocket = require('../services/websocket/deltaWebSocket');
@@ -20,12 +21,12 @@ const deltaWebSocket = require('../services/websocket/deltaWebSocket');
 // Put the strategy name exactly as it is returned by getName() and leave it
 // as '' to start nothing automatically.
 // ---------------------------------------------------------------------------
-const ACTIVE_STRATEGY ='EmaSlopeCross1m'//'OpenCloseCross1m' // 'OCC_AYUSH' | 'OpenCloseCross1m' | 'EmaSlopeCross1m' | 'SuperTrend2Macd1m' | 'TRSRating5m' | 'MacdCci1m' | 'MacdCci3m' | 'FractalBreakout1m' | 'PivotReversal1m' | 'BestAtrStop1m';
+const ACTIVE_STRATEGY ='OpenCloseCross1m'//'OpenCloseCross1m' // 'OCC_AYUSH' | 'OpenCloseCross1m' | 'EmaSlopeCross1m' | 'SuperTrend2Macd1m' | 'TRSRating5m' | 'MacdCci1m' | 'MacdCci3m' | 'FractalBreakout1m' | 'PivotReversal1m' | 'BestAtrStop1m';
 
 const STRATEGY_FOLDER = path.join(__dirname, 'strategies');
 
 const registry = new Map(); // "examplestrategy" -> strategy instance
-const engines = new Map(); // "examplestrategy" -> running TradingEngine
+const engines = new Map(); // "examplestrategy" -> TradingEngine[] (one per tracked symbol)
 
 // ---------------------------------------------------------------------------
 // Registration
@@ -97,50 +98,92 @@ async function start(name, options = {}) {
     throw new AppError('Real-time mode requested but the WebSocket is disabled (ENABLE_WEBSOCKET=false)', 400);
   }
 
-  const engine = new TradingEngine({
-    strategy,
-    // TRADING_SYMBOL is the single source of truth for the instrument: it drives
-    // the WebSocket subscription, the candle feed, the risk checks and the order
-    // symbol. A strategy's own `symbol` is only a fallback for when the env is
-    // blank; an explicit options.symbol (manual start) still wins.
-    symbol: options.symbol || config.trading.symbol || strategy.symbol,
-    intervalMs: useWebSocket ? 0 : options.intervalMs || 5000,
-    options: { userId: options.userId || null },
-  });
+  // An explicit symbol (manual start) pins one instrument. Otherwise the whole
+  // TRADING_SYMBOLS list is tracked together — the account then holds only ONE
+  // position across it (see orderManager.concurrencyGate) and takes whichever
+  // instrument gets a signal first.
+  const requested = options.symbol
+    ? [normalizeSymbol(options.symbol)]
+    : (Array.isArray(config.trading.symbols) && config.trading.symbols.length
+        ? config.trading.symbols
+        : [config.trading.symbol || strategy.symbol]);
 
-  if (useWebSocket) {
-    engine.useWebSocket(deltaWebSocket, [engine.symbol]);
+  // Each tracked instrument needs its own cross/ATR state, so it gets its own
+  // strategy instance. A strategy that cannot be cloned stays single-instrument.
+  const symbols = requested.length > 1 && typeof strategy.newInstance !== 'function'
+    ? [requested[0]]
+    : requested;
+  if (symbols.length !== requested.length) {
+    logger.warn(`Strategy ${strategy.getName()} cannot track multiple symbols — running ${symbols[0]} only`);
   }
 
-  await engine.start();
-  engines.set(key, engine);
+  // One shared loss-cooldown clock across every instance, so a loser on any
+  // instrument freezes the whole portfolio (see the strategy's LOSS_COOLDOWN_MIN).
+  const sharedCooldown = { untilMs: 0 };
 
-  await persistStatus(strategy, 'running');
-  logger.info(`Strategy started: ${strategy.getName()}`);
+  const instances = symbols.map((symbol, index) => {
+    const instance = index === 0 ? strategy : strategy.newInstance();
+    if (instance.cooldown) instance.cooldown = sharedCooldown;
+    return instance;
+  });
 
-  return engine.getStatus();
+  const started = [];
+  try {
+    for (let index = 0; index < symbols.length; index += 1) {
+      const engine = new TradingEngine({
+        strategy: instances[index],
+        intervalMs: useWebSocket ? 0 : options.intervalMs || 5000,
+        options: { userId: options.userId || null },
+        symbol: symbols[index],
+      });
+
+      if (useWebSocket) {
+        engine.useWebSocket(deltaWebSocket, [engine.symbol]);
+      }
+
+      await engine.start();
+      started.push(engine);
+    }
+  } catch (error) {
+    // Never leave half a portfolio running.
+    started.forEach((engine) => engine.stop());
+    throw error;
+  }
+
+  engines.set(key, started);
+
+  await persistStatus(strategy, 'running', symbols);
+  logger.info(`Strategy started: ${strategy.getName()} (${symbols.join(', ')})`);
+
+  return {
+    strategy: strategy.getName(),
+    symbol: symbols[0],
+    symbols,
+    running: true,
+    engines: started.map((engine) => engine.getStatus()),
+  };
 }
 
 async function stop(name) {
   const key = String(name).toLowerCase();
-  const engine = engines.get(key);
+  const running = engines.get(key);
 
-  if (!engine) {
+  if (!running) {
     throw new AppError(`Strategy "${name}" is not running`, 409);
   }
 
-  engine.stop();
+  running.forEach((engine) => engine.stop());
   engines.delete(key);
 
   await persistStatus(get(name), 'stopped');
   logger.info(`Strategy stopped: ${name}`);
 
-  return { name: engine.strategy.getName(), running: false };
+  return { name: running[0].strategy.getName(), running: false };
 }
 
 function stopAll() {
-  for (const [key, engine] of engines.entries()) {
-    engine.stop();
+  for (const [key, running] of engines.entries()) {
+    running.forEach((engine) => engine.stop());
     engines.delete(key);
   }
 }
@@ -163,21 +206,29 @@ async function startActiveStrategy() {
 }
 
 function getStatus(name) {
-  const engine = engines.get(String(name).toLowerCase());
-  return engine ? engine.getStatus() : { name, running: false };
+  const running = engines.get(String(name).toLowerCase());
+  if (!running) return { name, running: false };
+
+  return {
+    strategy: running[0].strategy.getName(),
+    symbol: running[0].symbol,
+    symbols: running.map((engine) => engine.symbol),
+    running: true,
+    engines: running.map((engine) => engine.getStatus()),
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Database bookkeeping (optional — a failure here must not break trading)
 // ---------------------------------------------------------------------------
 
-async function persistStatus(strategy, status) {
+async function persistStatus(strategy, status, symbols) {
   try {
     const update = {
       status,
       mode: config.trading.mode,
       description: strategy.description || '',
-      symbols: strategy.symbol ? [strategy.symbol] : [],
+      symbols: symbols || (strategy.symbol ? [strategy.symbol] : []),
     };
 
     if (status === 'running') update.lastStartedAt = new Date();

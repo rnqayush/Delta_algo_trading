@@ -25,6 +25,21 @@ function sideFromOrder(orderSide) {
   return orderSide === 'sell' ? 'short' : 'long';
 }
 
+// Delta (or the local book) reporting "there is nothing to close" is not a
+// failure — the position was already flattened, usually by the other leg of the
+// bracket firing on the same tick. Callers use this to treat it as a no-op
+// instead of an error, and to clear the stale local row it leaves behind.
+const ALREADY_FLAT_PATTERNS = [
+  /no_position_for_reduce_only/i,
+  /no open position found/i,
+  /position does not exist/i,
+];
+
+function isAlreadyFlatError(error) {
+  const message = String((error && error.message) || error || '');
+  return ALREADY_FLAT_PATTERNS.some((pattern) => pattern.test(message));
+}
+
 // ---------------------------------------------------------------------------
 // Reads
 // ---------------------------------------------------------------------------
@@ -339,11 +354,36 @@ async function applyOrder(order) {
 // still need the hard stop checked here — and enforces the time stop that
 // recycles the slot.
 
+// Marks a local position closed WITHOUT booking a PnL. Used when the exchange
+// has already flattened it, so there is no exit fill to account for (this
+// mirrors syncPositions' ghost clearing).
+async function clearLocalPosition(position, why) {
+  if (!position || position.status !== 'open') return null;
+
+  position.quantity = 0;
+  position.status = 'closed';
+  position.closedAt = new Date();
+  position.unrealizedPnl = 0;
+  position.lastSyncedAt = new Date();
+  await position.save();
+
+  logger.info(`Cleared the local ${position.side} ${position.symbol} position — ${why}`);
+  return position;
+}
+
 async function exitPosition(position, price, reason, userId) {
   try {
     logger.info(`Exiting ${position.side} ${position.symbol}: ${reason}`);
     return await closePosition({ symbol: position.symbol, price, userId, positionId: position._id });
   } catch (error) {
+    // Nothing left on Delta means the position was already flattened (usually
+    // by the exchange leg of the bracket on the same tick). The local row is
+    // then stale, so clear it — otherwise this loop retries the same doomed
+    // exit on every tick and logs an error each time.
+    if (isAlreadyFlatError(error)) {
+      await clearLocalPosition(position, 'Delta already holds nothing for it');
+      return position;
+    }
     logger.warn(`Could not exit the ${position.side} position on ${position.symbol}: ${error.message}`);
     return position;
   }
@@ -640,6 +680,7 @@ module.exports = {
   getOpenPositionsBySymbol,
   getExchangeOpenPositions,
   hasExchangeOpenPosition,
+  isAlreadyFlatError,
   updatePositionPrice,
   applyOrder,
   manageOpenPosition,

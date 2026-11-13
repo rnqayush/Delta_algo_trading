@@ -43,9 +43,9 @@ function startRealtime() {
   }
 
   deltaWebSocket.on('connected', () => {
-    // Public market data for the configured symbol is always streamed.
-    deltaWebSocket.subscribeTickers([config.trading.symbol]);
-    logger.info(`Subscribed to live market data for ${config.trading.symbol}`);
+    // Public market data for every configured symbol is always streamed.
+    deltaWebSocket.subscribeTickers(config.trading.symbols);
+    logger.info(`Subscribed to live market data for ${config.trading.symbols.join(', ')}`);
 
     // Private channels (orders/positions) are only available with API keys.
     const apiKeysConfigured = Boolean(config.delta.apiKey && config.delta.apiSecret);
@@ -59,7 +59,7 @@ function startRealtime() {
   });
 
   deltaWebSocket.on('ticker', (ticker) => {
-    if (normalizeSymbol(ticker.symbol) !== config.trading.symbol) return;
+    if (!config.trading.symbols.includes(normalizeSymbol(ticker.symbol))) return;
     logLiveMarketData(ticker);
   });
 

@@ -631,17 +631,27 @@ async function concurrencyGate(symbol) {
   const target = normalizeSymbol(symbol);
   const maxConcurrent = Math.max(1, Number(config.strategy.maxConcurrentPositions) || 1);
 
-  const { positions, liveEntries } = await getExchangeSnapshot(target);
+  // When several instruments are tracked (TRADING_SYMBOLS) they share ONE
+  // position slot: a position or a working entry on ANY of them claims it, so
+  // the free-slot count is taken over the whole list. That is what makes the
+  // portfolio take whichever instrument gets a signal first — and nothing else.
+  const tracked = Array.isArray(config.trading.symbols) && config.trading.symbols.length > 1
+    ? config.trading.symbols
+    : [target];
+
+  const snapshots = await Promise.all(tracked.map((item) => getExchangeSnapshot(item)));
 
   const used = new Set();
-  positions.forEach((position) => used.add(Number(position.slot) || 0));
-  liveEntries.forEach((order) => used.add(Number(order.slot) || 0));
+  snapshots.forEach(({ positions, liveEntries }) => {
+    positions.forEach((position) => used.add(Number(position.slot) || 0));
+    liveEntries.forEach((order) => used.add(Number(order.slot) || 0));
+  });
 
   if (used.size >= maxConcurrent) {
     return {
       allowed: false,
       slot: null,
-      reason: `${maxConcurrent} concurrent positions are already working for ${target}`,
+      reason: `${maxConcurrent} concurrent positions are already working for ${tracked.join('/')}`,
     };
   }
 

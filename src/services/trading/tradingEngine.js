@@ -16,6 +16,11 @@ const logger = require('../../utils/logger');
 const { AppError } = require('../../utils/errorHandler');
 const { isValidSignal, normalizeSignal, normalizeSymbol, startOfToday } = require('../../utils/helpers');
 
+// How often the engine re-checks that the account leverage still fits the
+// strategy's pinned lot size. Prices drift slowly enough that a minute is
+// plenty, and the check only calls Delta when the target actually changes.
+const LEVERAGE_CHECK_INTERVAL_MS = 60 * 1000;
+
 class TradingEngine extends EventEmitter {
   constructor({ strategy, symbol, intervalMs = 5000, options = {} } = {}) {
     super();
@@ -64,6 +69,11 @@ class TradingEngine extends EventEmitter {
 
     // The heavy pipeline (strategy + management) runs on a throttled cadence.
     this.lastCycleAt = 0;
+
+    // Leverage tracking: the account value we believe is set, and when we last
+    // checked it against the strategy's lot size.
+    this.appliedLeverage = 0;
+    this.lastLeverageCheckAt = 0;
   }
 
   setStrategy(strategy) {
@@ -82,6 +92,10 @@ class TradingEngine extends EventEmitter {
 
     // Give the strategy the exchange facts it needs (tick size, contract value).
     await this.applyProductSettings();
+
+    // Make sure the ACCOUNT's leverage can carry the strategy's pinned lot size
+    // before the first signal; it is then re-checked on every tick. Live only.
+    await this.applyLeverage({ force: true });
 
     // Reconcile the local book with Delta before the first signal: a position
     // closed while the bot was down would otherwise block the strategy for good.
@@ -163,6 +177,10 @@ class TradingEngine extends EventEmitter {
     }
     this.lastCycleAt = Date.now();
 
+    // Re-check the account leverage against the pinned lot size as price moves
+    // (internally throttled — it only calls Delta when the target changes).
+    await this.applyLeverage();
+
     // 1. Refresh the closed-candle context the strategy and the trade manager use.
     try {
       await this.refreshMarketContext();
@@ -197,6 +215,8 @@ class TradingEngine extends EventEmitter {
 
     // 4. Ask the strategy for a new setup.
     const state = await this.getStrategyState();
+    // Remembered so the leverage check can leave an open position alone.
+    this.lastState = state;
     const signal = this.strategy.evaluate(this.buildMarketData(ticker), state);
     if (!signal) return { executed: false, reason: 'Strategy returned no signal' };
 
@@ -221,6 +241,13 @@ class TradingEngine extends EventEmitter {
         });
         return { executed: true, position: closed, reason };
       } catch (error) {
+        // A close that finds nothing left is not a failure — the position was
+        // already flattened (the exchange leg of the bracket fired, or another
+        // engine closed it), so a note is all this deserves.
+        if (positionManager.isAlreadyFlatError(error)) {
+          logger.info(`Nothing to close on ${this.symbol}: ${error.message}`);
+          return { executed: false, reason: error.message };
+        }
         logger.warn(`Strategy-requested close failed: ${error.message}`);
         return { executed: false, reason: error.message };
       }
@@ -326,6 +353,78 @@ class TradingEngine extends EventEmitter {
       );
     } catch (error) {
       logger.warn(`Could not load the product for ${this.symbol}: ${error.message}`);
+    }
+  }
+
+  // Keeps the account's leverage high enough for the lot size the strategy
+  // pins. Recomputed on every (throttled) market tick so it follows both price
+  // drift and a lot-size change — not just the startup value. It only ever
+  // RAISES leverage: a value already above what the lots need is left alone, so
+  // margin stays free (positions are cross-margined, the free balance is the
+  // cushion) and an entry can never be blocked. Only meaningful live, and only
+  // for a strategy with a fixed size. Clamped to the product's own maximum; a
+  // failure is a warning, never fatal.
+  async applyLeverage({ force = false } = {}) {
+    if (!config.leverage.autoSet || !config.trading.isLive) return;
+    if (!force && Date.now() - this.lastLeverageCheckAt < LEVERAGE_CHECK_INTERVAL_MS) return;
+
+    const strategy = this.strategy || {};
+    const contracts = Number(strategy.fixedContracts) > 0 ? Math.floor(Number(strategy.fixedContracts)) : 0;
+    if (contracts <= 0) return;
+
+    const equity = Number(config.strategy.equity) || 0;
+    if (equity <= 0) return;
+
+    // Leverage only matters for the NEXT entry, and the exchange refuses a
+    // change while a position is open — so leave a live trade alone.
+    if (!force && this.lastState && this.lastState.hasOpenPosition) return;
+
+    this.lastLeverageCheckAt = Date.now();
+
+    try {
+      // Prefer the freshest price the engine already has; fall back to REST.
+      const ticker = this.lastTicker || (await marketService.getTicker(this.symbol).catch(() => null));
+      const price = Number(ticker?.price || ticker?.markPrice || 0);
+      if (price <= 0) return;
+
+      const product = await marketService.getProduct(this.symbol);
+      const contractValue = Number(product.contract_value) || 0;
+      if (contractValue <= 0) return;
+
+      // Notional the pinned lots carry today.
+      const notional = contractValue * price * contracts;
+
+      // Delta's initial_margin is a percent, so 100 / margin is the product max.
+      const initialMarginPct = Number(product.initial_margin) || 0;
+      const maxLeverage =
+        initialMarginPct > 0
+          ? Math.max(1, Math.floor(100 / initialMarginPct))
+          : Math.max(1, Math.floor(Number(product.default_leverage) || 1));
+
+      // The leverage at which the required margin still fits inside equity with
+      // the configured headroom.
+      const needed = Math.ceil((notional * config.leverage.buffer) / equity);
+      const target = Math.min(maxLeverage, Math.max(1, needed));
+
+      // Read the account only until we know it, then track it ourselves.
+      const current = this.appliedLeverage || (await orderService.getLeverage({
+        productId: product.id,
+        fallback: Number(product.default_leverage) || 1,
+      }));
+      this.appliedLeverage = current;
+
+      // Raise only — an already-sufficient leverage is left untouched.
+      if (target <= current) return;
+
+      await orderService.setLeverage({ productId: product.id, leverage: target });
+      strategy.leverage = target;
+      this.appliedLeverage = target;
+      logger.info(
+        `Leverage for ${this.symbol} raised ${current}x -> ${target}x so ${contracts} lots ` +
+          `(~$${notional.toFixed(2)} notional on $${equity} equity) fit, product max ${maxLeverage}x`
+      );
+    } catch (error) {
+      logger.warn(`Could not set the leverage for ${this.symbol}: ${error.message}`);
     }
   }
 
