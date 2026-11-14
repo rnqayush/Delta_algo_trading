@@ -13,9 +13,8 @@
 //     calls strategy.close, so an opposite cross simply REVERSES the position.
 //     This port keeps that reversal but ADDS risk exits, because a study of
 //     this strategy's own realised trades showed the whole drawdown sits in a
-//     few long-held trades: a fixed ATR stop (rests on the exchange), a time
-//     stop, and a loss cooldown that skips the trade right after a loser.
-//     See RISK CONTROLS below.
+//     few long-held trades: a time stop and a loss cooldown that skips the
+//     trade right after a loser. See RISK CONTROLS below.
 //
 // The original also uses `security(..., lookahead=barmerge.lookahead_on)` with
 // "Delay Open/Close MA" = 0, so on TradingView the cross is read from the
@@ -76,15 +75,22 @@ const LOTS = 5;
 // more than every winner combined. The damage was concentrated in trades that
 // were held for 15-35 minutes (avg loser 13.6 min vs avg winner 5.6 min) with
 // no stop, entered at high volatility (the two biggest live losses fired at
-// ATR(14) ~= 1.2% and 1.9% of price). These settings cap exactly that.
+// ATR(14) ~= 1.2% and 1.9% of price). A time stop caps exactly that.
 
 // Fixed stop placed at entry: distance = ATR_STOP_MULT x ATR(ATR_PERIOD) on the
 // 1m chart. It travels on the signal as `stopLoss`, so orderManager rests it on
 // the exchange as a reduce-only stop_market_order (and the position manager
 // mirrors it locally in paper mode), so the position stays protected even if
 // this process dies.
+//
+// DISABLED (0): in live trading a 1x ATR(14) stop sits inside ordinary 1m noise
+// on these thin instruments, so it was hit far more often than the reversal or
+// the time stop would have exited the trade. With this at 0 no `stopLoss`
+// reaches the signal, so orderManager rests no reduce-only stop on Delta and
+// the position manager tests no local stop either — the exits left are the time
+// stop below and the next opposite cross. Set > 0 to bring the ATR stop back.
 const ATR_PERIOD = 14;
-const ATR_STOP_MULT = 1;
+const ATR_STOP_MULT = 0;
 
 // Time stop: flatten at market once the position has been open this many
 // minutes. The published script has no time exit at all, so a losing trade is
@@ -136,8 +142,8 @@ class OpenCloseCross1m {
     this.description =
       'Open Close Cross (TradingView R5.1) on the 1m chart: SMMA(8) of the close crossing SMMA(8) ' +
       'of the open is taken the published way — a bull cross opens a long, a bear cross a short. ' +
-      'An always-in reversal system whose primary exit is the next opposite cross, plus a fixed ' +
-      'ATR stop and a time stop (see RISK CONTROLS).';
+      'An always-in reversal system whose primary exit is the next opposite cross, plus a time ' +
+      'stop and a loss cooldown (see RISK CONTROLS).';
     // Left blank on purpose: the engine sets this to TRADING_SYMBOL on start
     // (see tradingEngine.applyProductSettings), so the instrument is configured
     // in one place — .env — and can never disagree with the WebSocket feed.
@@ -295,11 +301,14 @@ class OpenCloseCross1m {
     const quantity = this.volatilityAdjustedSize(this.sizeContracts(entry));
     if (!(quantity > 0)) return { action: 'HOLD', reason: 'size rounds to zero contracts' };
 
-    // Fixed ATR stop, snapped to the tick grid and only used when it is a real
-    // level strictly on the losing side of the entry. A missing/degenerate ATR
-    // leaves the trade unprotected rather than attaching a stop at the entry.
+    // Fixed ATR stop — see ATR_STOP_MULT. Snapped to the tick grid and only
+    // used when it is a real level strictly on the losing side of the entry. A
+    // missing/degenerate ATR leaves the trade unprotected rather than attaching
+    // a stop at the entry. With ATR_STOP_MULT = 0 no stop is emitted at all, so
+    // nothing is rested on the exchange and the exits are the time stop and the
+    // next opposite cross.
     let stopLoss = null;
-    if (this.atr && this.atr > 0) {
+    if (ATR_STOP_MULT > 0 && this.atr && this.atr > 0) {
       const raw = side === 'long' ? entry - ATR_STOP_MULT * this.atr : entry + ATR_STOP_MULT * this.atr;
       const snapped = this.snap(raw);
       if (snapped > 0 && snapped !== entry) stopLoss = snapped;
@@ -319,8 +328,8 @@ class OpenCloseCross1m {
       reason:
         `OpenCloseCross ${side}: close SMMA(${MA_LEN}) crossed ` +
         `${this.lastCross === 'bear' ? 'under' : 'over'} the open SMMA(${MA_LEN}) at ${entry} ` +
-        `— market entry, ATR stop ${stopLoss || 'n/a'}, time stop ${TIME_STOP_MIN}m, ` +
-        `the next opposite cross reverses`,
+        `— market entry, ${stopLoss ? `ATR stop ${stopLoss}, ` : 'no hard stop, '}` +
+        `time stop ${TIME_STOP_MIN}m, the next opposite cross reverses`,
       meta: {
         exitMode: 'reverse',
         family: 'open-close-cross-1m',
