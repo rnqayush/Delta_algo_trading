@@ -66,7 +66,7 @@ const INVERT_SIGNALS = true;
 //          from percent_of_equity (10% notional), floored at minContracts.
 // Keep it inside RISK_MAX_ORDER_QUANTITY / RISK_MAX_POSITION_SIZE or the risk
 // manager will reject the order.
-const LOTS = 10;
+const LOTS = 5;
 
 // ---------------------------------------------------------------------------
 // RISK CONTROLS
