@@ -34,6 +34,7 @@
 //      already holding the signal's side -> stand down.
 
 const { atr } = require('../../utils/indicators');
+const { normalizeSymbol } = require('../../utils/helpers');
 
 const MA_LEN = 8;
 
@@ -56,7 +57,7 @@ const HALT_ON_DAILY_LOSS = false;
 // never to the order action — buildEntry still does BUY-for-long / SELL-for-
 // short. That keeps `signalSide === position.side`, which is what the reverse-
 // on-opposite-cross test compares.
-const INVERT_SIGNALS = true;
+const INVERT_SIGNALS = false;
 
 // Order size in CONTRACTS (Delta "lots"). This is the size every entry sends:
 //   > 0 -> that exact number of contracts, and it WINS over
@@ -65,6 +66,17 @@ const INVERT_SIGNALS = true;
 //          from percent_of_equity (10% notional), floored at minContracts.
 // Keep it inside RISK_MAX_ORDER_QUANTITY / RISK_MAX_POSITION_SIZE or the risk
 // manager will reject the order.
+//
+// LOTS_BY_SYMBOL overrides it per instrument. TRADING_SYMBOLS runs one strategy
+// instance per instrument, and each has its own price and contract_value, so the
+// same raw lot count is a very different exposure on each. A symbol listed here
+// trades that exact size; anything not listed (or a single-symbol run) uses LOTS.
+// Rebalance the map rather than LOTS when only one instrument changes.
+const LOTS_BY_SYMBOL = {
+  AINUSD: 1,
+  JCTUSD: 5,
+  HUSD: 7,
+};
 const LOTS = 5;
 
 // ---------------------------------------------------------------------------
@@ -200,12 +212,21 @@ class OpenCloseCross1m {
     this.openEntryPrice = null; // its entry price, used to score the close
   }
 
+  // The pinned lot size for THIS instance's instrument: LOTS_BY_SYMBOL first,
+  // then whatever the engine filled in from STRATEGY_FIXED_CONTRACTS (only ever
+  // consulted when the constructor's LOTS is 0).
+  lotsForSymbol() {
+    const pinned = Math.floor(Number(LOTS_BY_SYMBOL[normalizeSymbol(this.symbol || '')]) || 0);
+    if (pinned > 0) return pinned;
+    return Math.max(0, Math.floor(Number(this.fixedContracts) || 0));
+  }
+
   // percent_of_equity sizing (10% of equity notional), floored at the exchange
-  // minimum. An explicit lot size (LOTS, else STRATEGY_FIXED_CONTRACTS) bypasses
-  // the maths entirely.
+  // minimum. An explicit lot size (LOTS_BY_SYMBOL, else LOTS) bypasses the maths
+  // entirely.
   sizeContracts(entry) {
-    const fixed = Number(this.fixedContracts) || 0;
-    if (fixed > 0) return Math.max(1, Math.floor(fixed));
+    const fixed = this.lotsForSymbol();
+    if (fixed > 0) return Math.max(1, fixed);
 
     const price = Number(entry);
     const contractValue = Number(this.contractValue) || 0.001;
