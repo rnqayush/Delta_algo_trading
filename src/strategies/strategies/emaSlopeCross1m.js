@@ -11,8 +11,7 @@
 //     BELOW the slow EMA and SELLS when it crosses ABOVE — it fades the trend.
 //   * the published script ships no stop and no target and never calls
 //     strategy.close, so an opposite signal simply REVERSES the position. This
-//     port keeps that reversal, and adds the HFTV1 scalper's rule on top: the
-//     profit is BOOKED the instant the trade is green (see TAKE_PROFIT_PCT).
+//     port keeps that reversal as its only exit: no stop, no target.
 //
 // Measured behaviour (see backtest/ema-slope-cross.js): an always-in reversal
 // system that flips very often — ~220-250 flips/day on a 1m feed. Retail fees
@@ -24,7 +23,6 @@
 //   1. rebuild the three EMAs (no look-ahead);
 //   2. look for the long/short rule on this bar;
 //   3. flat -> enter at market in the signal's direction;
-//      holding a trade that is GREEN -> book the profit at market;
 //      holding the other side -> close at market (reduce-only) and let the
 //      next cycle open the reverse leg;
 //      already holding the signal's side -> stand down.
@@ -61,13 +59,6 @@ const INVERT_SIGNALS = false;
 // Keep it inside RISK_MAX_ORDER_QUANTITY / RISK_MAX_POSITION_SIZE or the risk
 // manager will reject the order.
 const LOTS = 1;
-
-// Book the profit the instant the trade is GREEN — the HFTV1 scalper's rule.
-// The move is measured in the position's own direction (+ = green, - = red) and
-// compared with this PERCENT of the entry price:
-//   0   -> take profit on the first tick that is green (immediate)
-//   > 0 -> require at least that much favourable move before booking
-const TAKE_PROFIT_PCT = 0;
 
 // ---------------------------------------------------------------------------
 // Indicators
@@ -237,9 +228,8 @@ class EmaSlopeCross1m {
 
   // Places one market entry. The original uses strategy.entry (a market order),
   // and an always-in reversal cannot safely rest an unfilled limit, so this
-  // stays a market order. No stop and no target travel with the order — the
-  // exits are strategy-driven: book the profit the instant the trade is green,
-  // else let the next opposite signal reverse it.
+  // stays a market order. No stop and no target travel with the order — the next
+  // opposite signal is the only exit.
   buildEntry(side, last) {
     const entry = this.snap(last.close);
     if (!(entry > 0)) return { action: 'HOLD', reason: 'no valid entry price' };
@@ -258,10 +248,9 @@ class EmaSlopeCross1m {
       strategyName: this.name,
       reason:
         `EmaSlopeCross ${side}: ${this.lastReason} at ${entry} — ` +
-        `market entry, no bracket: the profit is booked once green, an opposite signal reverses`,
+        `market entry, no bracket, the next opposite signal reverses`,
       meta: {
-        // Strategy-driven exits (CLOSE actions), not a resting bracket.
-        exitMode: 'signal',
+        exitMode: 'reverse',
         family: 'ema-slope-cross-1m',
         // Carried into the risk context so the daily-loss cap can be opted out
         // of for this strategy (see HALT_ON_DAILY_LOSS above).
@@ -279,10 +268,6 @@ class EmaSlopeCross1m {
     const last = candles[candles.length - 1];
     if (!last || !last.time) return { action: 'HOLD', reason: 'no closed 1m candle yet' };
 
-    // Last market price. This is what the trade is marked against and what the
-    // entry/exit really happens at; the closed bar is only a fallback.
-    const price = Number(marketData.price) || Number(last.close) || 0;
-
     // One signal decision per closed 1m bar. The decision BELOW still runs on
     // every tick, so a pending close or entry is acted on without waiting a bar.
     if (last.time !== this.lastBarTime) {
@@ -296,26 +281,6 @@ class EmaSlopeCross1m {
 
     // --- holding a position -------------------------------------------------
     if (position) {
-      const entry = Number(position.entryPrice) || 0;
-
-      // Book the profit the instant the trade is GREEN (HFTV1's rule). The move
-      // is measured in the position's own direction, so it is positive for a
-      // long above its entry and for a short below it.
-      if (entry > 0 && price > 0) {
-        const dir = position.side === 'short' ? -1 : 1;
-        const movePct = ((price - entry) / entry) * 100 * dir;
-        if (movePct > TAKE_PROFIT_PCT) {
-          return {
-            action: 'CLOSE',
-            symbol: this.symbol,
-            strategyName: this.name,
-            reason:
-              `book profit: ${position.side} is +${movePct.toFixed(3)}% from entry ${this.fmt(entry)} ` +
-              `(mark ${this.fmt(price)}) — closing`,
-          };
-        }
-      }
-
       // An opposite signal is the reverse leg: close at market, re-enter next.
       if (this.signalSide && position.side && position.side !== this.signalSide) {
         return {
