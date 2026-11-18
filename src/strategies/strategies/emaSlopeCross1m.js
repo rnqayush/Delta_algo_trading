@@ -49,7 +49,7 @@ const HALT_ON_DAILY_LOSS = false;
 // never to the order action — buildEntry still does BUY-for-long / SELL-for-
 // short. That keeps `signalSide === position.side`, which is what the reverse-
 // on-opposite-signal test compares.
-const INVERT_SIGNALS = true;
+const INVERT_SIGNALS = false;
 
 // Order size in CONTRACTS (Delta "lots"). This is the size every entry sends:
 //   > 0 -> that exact number of contracts, and it WINS over
@@ -118,6 +118,12 @@ class EmaSlopeCross1m {
 
   getName() {
     return this.name;
+  }
+
+  // A fresh instance per tracked symbol, so each instrument keeps its own
+  // last-bar and signal state.
+  newInstance() {
+    return new EmaSlopeCross1m();
   }
 
   reset() {

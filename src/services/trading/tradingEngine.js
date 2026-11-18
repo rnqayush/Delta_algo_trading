@@ -195,7 +195,10 @@ class TradingEngine extends EventEmitter {
       logger.error(`Paper fill handling failed: ${error.message}`);
     }
     try {
-      await orderManager.cancelExpiredOrders(this.symbol);
+      // Swept without a symbol on purpose: the local book is process-wide, and a
+      // leftover expired order on an instrument no engine tracks any more would
+      // otherwise stay "open" and count against RISK_MAX_OPEN_TRADES for ever.
+      await orderManager.cancelExpiredOrders();
     } catch (error) {
       logger.error(`Expired-order handling failed: ${error.message}`);
     }
@@ -231,6 +234,9 @@ class TradingEngine extends EventEmitter {
           symbol: this.symbol,
           price: ticker.price,
           userId: this.options.userId || null,
+          // A strategy holding several units may name the exact one to flatten
+          // (its position id); without it the newest position is closed.
+          positionId: signal.positionId || null,
         });
         const reason = signal.reason || `Closed the ${this.symbol} position on the strategy's signal`;
         this.emit('signal', {
@@ -553,13 +559,16 @@ class TradingEngine extends EventEmitter {
 
     // A strategy may hold several concurrent positions; report the counts so it
     // can decide whether a free slot is available. The booleans are kept for
-    // strategies that only understand a single position.
+    // strategies that only understand a single position. `liveEntries` carries
+    // the resting entry orders themselves (side + price), which a grid strategy
+    // needs to know which of its ladder legs are already working.
     return {
       hasOpenPosition: positions.length > 0,
       hasLiveOrder: liveEntries.length > 0,
       openPositions: positions.length,
       liveOrders: liveEntries.length,
       positions,
+      liveEntries,
       source,
     };
   }

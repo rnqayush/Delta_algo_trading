@@ -77,8 +77,12 @@ async function validate(signal, context = {}) {
   }
 
   // 8. Duplicate order protection (same symbol + side in a short window).
-  // Exempt for exits — two slots may legitimately exit the same side together.
-  if (!context.reduceOnly) {
+  // Exempt for exits — two slots may legitimately exit the same side together —
+  // and for GRID legs: a ladder rests several orders on purpose, and they can
+  // share a side (e.g. a buy limit on both the candle's open and its close).
+  // The legs are told apart by their shared meta.gridGroup, not by the window.
+  const isGridLeg = Boolean(signal.meta && signal.meta.gridGroup);
+  if (!context.reduceOnly && !isGridLeg) {
     const duplicate = findDuplicate(signal, context.recentOrders || []);
     if (duplicate) {
       return reject(

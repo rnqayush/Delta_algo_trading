@@ -137,6 +137,12 @@ class EmaSlopeCross1mV2 {
     return this.name;
   }
 
+  // A fresh instance per tracked symbol, so each instrument keeps its own
+  // last-bar and signal state.
+  newInstance() {
+    return new EmaSlopeCross1mV2();
+  }
+
   reset() {
     this.lastBarTime = 0; // last closed 1m bar already evaluated
     this.ma1 = null; // EMA(close, MA_LEN_1)

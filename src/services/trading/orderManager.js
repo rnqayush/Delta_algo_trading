@@ -9,6 +9,7 @@ const Trade = require('../../models/Trade');
 const riskManager = require('./riskManager');
 const positionManager = require('./positionManager');
 const orderService = require('../delta/orderService');
+const positionService = require('../delta/positionService');
 const marketService = require('../delta/marketService');
 const logger = require('../../utils/logger');
 const { AppError } = require('../../utils/errorHandler');
@@ -33,6 +34,18 @@ const ordersInFlight = new Set();
 
 function isRestingOrderType(orderType) {
   return RESTING_ORDER_TYPES.includes(String(orderType || '').toLowerCase());
+}
+
+// Delta answering "there is no such open order" to a cancel: the order left the
+// book behind our back (it filled, or it was cancelled somewhere else). The
+// local row is then stale and MUST be settled — an entry row left at "open"
+// counts against RISK_MAX_OPEN_TRADES for ever and blocks every later entry
+// with "Maximum number of open trades reached".
+const VANISHED_ORDER_PATTERNS = [/open_order_not_found/i, /order_not_found/i, /order not found/i];
+
+function isVanishedOrderError(error) {
+  const message = String((error && error.message) || error || '');
+  return VANISHED_ORDER_PATTERNS.some((pattern) => pattern.test(message));
 }
 
 // A LIMIT entry that declares an exchange bracket (meta.exitMode === 'bracket')
@@ -78,6 +91,16 @@ function entryValidityMs() {
   return Number(config.strategy.entryValidityMinutes || 60) * 60 * 1000;
 }
 
+// The validity window for one specific resting order. A strategy can pin a
+// shorter one per order via meta.entryValidityMs — a grid leg must die with the
+// candle it belongs to, not hang around for the global 60m — otherwise the
+// global STRATEGY_ENTRY_VALIDITY_MINUTES applies.
+function resolveEntryValidityMs(signal) {
+  const override = Number(signal.meta && signal.meta.entryValidityMs);
+  if (Number.isFinite(override) && override > 0) return override;
+  return entryValidityMs();
+}
+
 // The bracket / trade plan that must travel with the entry. When the bracket is
 // attached on the exchange (see executeLiveOrder) the flag rides along in meta so
 // the position manager knows Delta already owns the exit.
@@ -112,6 +135,16 @@ async function execute(rawSignal, options = {}) {
     return { executed: false, reason: 'Signal is HOLD — nothing to do', signal };
   }
 
+  // Fail fast when live trading is switched off: there is no way the order can
+  // be placed, so there is no point asking the exchange for a position snapshot
+  // (the concurrency gate below does) before refusing it.
+  if (mode === 'live' && !config.trading.liveTradingEnabled) {
+    const reason =
+      'Live trading is switched off. Set ENABLE_LIVE_TRADING=true (and be sure) before sending real orders.';
+    logger.warn(`Order blocked: ${reason}`);
+    return { executed: false, reason, signal };
+  }
+
   assertNotDuplicateInFlight(signal.clientOrderId);
   ordersInFlight.add(signal.clientOrderId);
 
@@ -132,7 +165,13 @@ async function execute(rawSignal, options = {}) {
     // positions at once; each new entry is assigned the lowest free slot so the
     // trade manager can keep the slots independent. Reduce-only exits are exempt.
     if (!options.reduceOnly) {
-      const gate = await concurrencyGate(signal.symbol);
+      const gate = await concurrencyGate(signal.symbol, {
+        // A strategy may ask for every instrument to run its own position at the
+        // same time instead of sharing one slot across the whole list.
+        independentSlots: Boolean(signal.meta && signal.meta.independentSlots),
+        // A grid declares how many entry legs may rest at once (see the gate).
+        maxWorkingEntries: signal.meta && signal.meta.maxWorkingEntries,
+      });
       if (!gate.allowed) {
         logger.warn(`Order blocked: ${gate.reason}`);
         return { executed: false, reason: gate.reason, signal };
@@ -212,6 +251,8 @@ async function handleOrderUpdate(payload = {}) {
 
   if (!wasFilled && order.status === 'filled') {
     await positionManager.applyOrder(order);
+    // A grid leg just filled — take the rest of its ladder off the book.
+    await cancelGridSiblings(order);
   }
   return order;
 }
@@ -268,6 +309,9 @@ async function findExchangeLiveEntries(symbol) {
       symbol: target,
       side: String(order.side || '').toLowerCase(),
       quantity: Math.abs(Number(order.unfilled_size ?? order.size ?? 0)),
+      // The resting price. A grid strategy matches its legs against this to know
+      // which levels are already working, so it never sends the same leg twice.
+      price: Number(order.limit_price ?? order.stop_price ?? 0),
       slot: 0,
       source: 'delta',
     }));
@@ -330,14 +374,68 @@ async function handlePaperTick(symbol, price) {
       logger.error('Could not update the position for this filled limit order', error);
     }
 
+    // A grid leg just filled — take the rest of its ladder off the book.
+    await cancelGridSiblings(order);
+
     filled += 1;
   }
 
   return filled;
 }
 
+// Settles a live order Delta no longer has on its book (see
+// isVanishedOrderError). Delta is asked for the final state so the log can say
+// what really happened; when Delta cannot answer, the row is closed locally as
+// "cancelled". Either way the row stops counting as a working entry.
+//
+// The fill is deliberately NOT pushed into the position book here: this is a
+// stale-row cleanup that can run long after the fact, and the position it once
+// belonged to is usually already gone — replaying the fill would invent an open
+// position the exchange does not hold. Positions are read straight from Delta
+// for every placement-time decision, and positionManager.syncPositions()
+// reconciles the local book at startup.
+async function resolveVanishedOrder(order) {
+  try {
+    const remote = await orderService.getOrder(order.deltaOrderId);
+    if (remote && remote.state) {
+      order.deltaStatus = remote.state;
+      order.status = mapDeltaOrderStatus(remote.state);
+      const averagePrice = Number(remote.average_fill_price || 0);
+      if (averagePrice > 0) order.averagePrice = averagePrice;
+    }
+  } catch (error) {
+    logger.warn(
+      `Could not read the vanished order ${order.deltaOrderId} from Delta: ${error.message}`
+    );
+  }
+
+  // Still reading as working after all that -> the exchange does not have it, so
+  // it is gone from the book.
+  if (OPEN_ORDER_STATUSES.includes(order.status)) order.status = 'cancelled';
+  if (order.status === 'filled' && !order.filledAt) order.filledAt = new Date();
+
+  await order.save();
+
+  if (order.status === 'filled') {
+    logger.warn(
+      `Stale order ${order._id} (${order.symbol}, delta id ${order.deltaOrderId}) had in fact ` +
+        `FILLED and was left "open" locally — settled as filled. Positions and PnL are taken ` +
+        'from Delta, so the books were never wrong about the exposure.'
+    );
+  } else {
+    logger.info(
+      `Stale order ${order._id} (${order.symbol}, delta id ${order.deltaOrderId}) settled as ` +
+        `"${order.status}" — Delta no longer has it open`
+    );
+  }
+
+  return order;
+}
+
 // Cancels resting orders whose validity window has passed (the 4-candle rule).
-// Returns how many orders were cancelled.
+// Returns how many orders were cancelled. Called without a symbol to sweep the
+// whole local book, which is what keeps a leftover order on an instrument no
+// longer tracked from eating a slot of RISK_MAX_OPEN_TRADES.
 async function cancelExpiredOrders(symbol) {
   const target = normalizeSymbol(symbol);
   const filter = {
@@ -358,6 +456,13 @@ async function cancelExpiredOrders(symbol) {
       try {
         await orderService.cancelOrder({ orderId: order.deltaOrderId, productId: order.productId });
       } catch (error) {
+        // Delta does not have it open any more — settle the local row instead of
+        // leaving it "open" for ever (see resolveVanishedOrder).
+        if (isVanishedOrderError(error)) {
+          await resolveVanishedOrder(order);
+          cancelled += 1;
+          continue;
+        }
         logger.warn(`Could not cancel the expired live order ${order._id}: ${error.message}`);
         continue;
       }
@@ -369,6 +474,56 @@ async function cancelExpiredOrders(symbol) {
     cancelled += 1;
   }
 
+  return cancelled;
+}
+
+// A grid rests several sibling entry legs for ONE bar — they all carry the same
+// meta.gridGroup. The moment one of them fills it has done its job: the grid is
+// meant to produce exactly ONE trade per bar, so every other leg of the group is
+// taken off the book here. Orders with no meta.gridGroup (every non-grid order,
+// including the reduce-only protective legs) are never touched.
+//
+// Mirrors cancelExpiredOrders: a leg Delta no longer has is settled through
+// resolveVanishedOrder rather than being left "open" and counted as a working
+// entry for ever.
+async function cancelGridSiblings(order) {
+  const group = order && order.meta ? order.meta.gridGroup : null;
+  if (!group) return 0;
+
+  const siblings = await Order.find({
+    _id: { $ne: order._id },
+    'meta.gridGroup': group,
+    status: { $in: OPEN_ORDER_STATUSES },
+  });
+
+  let cancelled = 0;
+  for (const sibling of siblings) {
+    if (sibling.mode === 'live' && sibling.deltaOrderId) {
+      if (!config.trading.isLive) {
+        logger.warn(`Grid leg ${sibling._id} was not cancelled — live trading is disabled`);
+        continue;
+      }
+      try {
+        await orderService.cancelOrder({ orderId: sibling.deltaOrderId, productId: sibling.productId });
+      } catch (error) {
+        if (isVanishedOrderError(error)) {
+          await resolveVanishedOrder(sibling);
+          cancelled += 1;
+          continue;
+        }
+        logger.warn(`Could not cancel the grid leg ${sibling._id}: ${error.message}`);
+        continue;
+      }
+    }
+
+    sibling.status = 'cancelled';
+    await sibling.save();
+    cancelled += 1;
+  }
+
+  if (cancelled) {
+    logger.info(`Grid ${group}: ${cancelled} sibling leg(s) cancelled after the ${order.side} fill`);
+  }
   return cancelled;
 }
 
@@ -565,6 +720,14 @@ async function cancelProtectiveOrdersForPosition(position) {
       try {
         await orderService.cancelOrder({ orderId: order.deltaOrderId, productId: order.productId });
       } catch (error) {
+        // Same stale-row trap as the expiry sweep: a "vanished" protective leg
+        // left at "open" would block the next stop/target of the same kind from
+        // ever being placed (see placeProtectiveOrder).
+        if (isVanishedOrderError(error)) {
+          await resolveVanishedOrder(order);
+          cancelled += 1;
+          continue;
+        }
         logger.warn(`Could not cancel the protective ${order.purpose} ${order._id}: ${error.message}`);
         continue;
       }
@@ -627,17 +790,34 @@ function assertNotDuplicateInFlight(clientOrderId) {
 //
 // The counts come from Delta (see getExchangeSnapshot), not from the database,
 // so a trade closed by hand can never leave the gate permanently shut.
-async function concurrencyGate(symbol) {
+//
+// By default, when several instruments are tracked (TRADING_SYMBOLS) they share
+// ONE position slot: a position or a working entry on ANY of them claims it, so
+// the free-slot count is taken over the whole list. That is what makes the
+// portfolio take whichever instrument gets a signal first — and nothing else.
+//
+// A strategy can opt out of the shared pool with `meta.independentSlots`: each
+// instrument then counts only its own positions and working entries, so several
+// of them can hold a position at the same time (each still capped at
+// maxConcurrentPositions).
+//
+// A GRID strategy additionally declares `meta.maxWorkingEntries`: it rests a
+// whole LADDER of entry legs at once (e.g. a buy and a sell limit on two price
+// levels), so its legs are counted against their own budget instead of the
+// position slots — otherwise the second leg would be refused and the ladder
+// could never rest. Only ONE leg ever fills, so the ladder still opens at most
+// maxConcurrentPositions positions.
+async function concurrencyGate(symbol, options = {}) {
   const target = normalizeSymbol(symbol);
   const maxConcurrent = Math.max(1, Number(config.strategy.maxConcurrentPositions) || 1);
+  const ladder =
+    Number(options.maxWorkingEntries) > 0 ? Math.floor(Number(options.maxWorkingEntries)) : null;
 
-  // When several instruments are tracked (TRADING_SYMBOLS) they share ONE
-  // position slot: a position or a working entry on ANY of them claims it, so
-  // the free-slot count is taken over the whole list. That is what makes the
-  // portfolio take whichever instrument gets a signal first — and nothing else.
-  const tracked = Array.isArray(config.trading.symbols) && config.trading.symbols.length > 1
-    ? config.trading.symbols
-    : [target];
+  const independent = options.independentSlots === true;
+  const tracked =
+    !independent && Array.isArray(config.trading.symbols) && config.trading.symbols.length > 1
+      ? config.trading.symbols
+      : [target];
 
   const snapshots = await Promise.all(tracked.map((item) => getExchangeSnapshot(item)));
 
@@ -647,7 +827,25 @@ async function concurrencyGate(symbol) {
     liveEntries.forEach((order) => used.add(Number(order.slot) || 0));
   });
 
-  if (used.size >= maxConcurrent) {
+  if (ladder !== null) {
+    const positionCount = snapshots.reduce((total, snap) => total + snap.positions.length, 0);
+    const entryCount = snapshots.reduce((total, snap) => total + snap.liveEntries.length, 0);
+
+    if (positionCount >= maxConcurrent) {
+      return {
+        allowed: false,
+        slot: null,
+        reason: `${maxConcurrent} concurrent positions are already working for ${tracked.join('/')}`,
+      };
+    }
+    if (entryCount >= ladder) {
+      return {
+        allowed: false,
+        slot: null,
+        reason: `the ${ladder}-leg grid is already resting for ${target} — one trade per bar`,
+      };
+    }
+  } else if (used.size >= maxConcurrent) {
     return {
       allowed: false,
       slot: null,
@@ -660,12 +858,91 @@ async function concurrencyGate(symbol) {
   return { allowed: true, slot };
 }
 
+// How many trades are really live right now, for the max-open-trades cap.
+//
+// LIVE: the count is read from Delta — the open positions the account actually
+// holds plus the entry orders genuinely working on the book — never from the
+// local Order rows. A stale local row (an entry that filled on Delta but was
+// never settled here) used to stay "open" for ever and permanently eat the
+// RISK_MAX_OPEN_TRADES budget, so every later entry was refused with
+// "Maximum number of open trades reached". Delta is the source of truth.
+//
+// PAPER: there is no exchange to ask, so the local book is the truth there.
+//
+// A grid's resting legs are ONE trade, not one per leg: the legs of a bar all
+// share meta.gridGroup, so each GROUP counts once and only non-grid entries
+// count on their own. Otherwise a 4-leg ladder would blow a RISK_MAX_OPEN_TRADES
+// of 2 before a single leg had filled.
+async function countOpenTrades() {
+  if (config.trading.mode !== 'live') {
+    // Paper has no exchange to ask, so the local book is the truth. Group the
+    // grid legs exactly like the live path so a paper ladder is one trade too.
+    const openEntries = await Order.find({
+      status: { $in: OPEN_ORDER_STATUSES },
+      reduceOnly: { $ne: true },
+    })
+      .select('meta.gridGroup')
+      .lean();
+
+    const groups = new Set();
+    let solo = 0;
+    openEntries.forEach((row) => {
+      const group = row.meta && row.meta.gridGroup;
+      if (group) groups.add(group);
+      else solo += 1;
+    });
+    return solo + groups.size;
+  }
+
+  const [positions, orders] = await Promise.all([
+    positionService.getOpenPositions(),
+    orderService.getOpenOrders(),
+  ]);
+
+  const openPositions = Array.isArray(positions) ? positions.length : 0;
+  // Protective legs are reduce-only and must not eat into the budget.
+  const workingEntries = (Array.isArray(orders) ? orders : []).filter(isExchangeEntryOrder);
+  const gridGroups = await gridGroupsOf(workingEntries);
+
+  // `gridGroups` maps each working entry's client_order_id to its grid group, so
+  // an entry that belongs to a grid is recognised by its ID — not by its group
+  // VALUE. Everything else is a plain, single-trade entry.
+  const soloEntries = workingEntries.filter(
+    (entry) => !gridGroups.has(entry.client_order_id)
+  ).length;
+
+  // Each bar of a grid is ONE trade however many legs it rests, so the distinct
+  // groups count once each.
+  const distinctGroups = new Set(gridGroups.values()).size;
+
+  return openPositions + soloEntries + distinctGroups;
+}
+
+// Maps each working entry's client_order_id to the grid group it belongs to (if
+// any). Delta does not echo our meta, so the group is recovered through the
+// client_order_id we submitted: the local Order row for that id carries
+// meta.gridGroup. Returning a map (not just the group values) is what lets the
+// caller tell a grid leg apart from a solo entry.
+async function gridGroupsOf(entries) {
+  const ids = entries.map((entry) => entry.client_order_id).filter(Boolean);
+  if (!ids.length) return new Map();
+
+  const rows = await Order.find({ clientOrderId: { $in: ids } })
+    .select('clientOrderId meta.gridGroup')
+    .lean();
+
+  const byClientOrderId = new Map();
+  rows.forEach((row) => {
+    const group = row.meta && row.meta.gridGroup;
+    if (group) byClientOrderId.set(row.clientOrderId, group);
+  });
+  return byClientOrderId;
+}
+
 // Collects the numbers the risk manager needs.
 async function buildRiskContext(signal, options) {
   const [openTradesCount, recentOrders, positions, tradesToday] = await Promise.all([
-    // Only working ENTRIES count as "open trades" — protective stops are
-    // reduce-only and must not eat into the max-open-trades budget.
-    Order.countDocuments({ status: { $in: OPEN_ORDER_STATUSES }, reduceOnly: { $ne: true } }),
+    countOpenTrades(),
     Order.find({ createdAt: { $gte: new Date(Date.now() - DUPLICATE_LOOKBACK_MS) } })
       .sort({ createdAt: -1 })
       .limit(25)
@@ -736,7 +1013,7 @@ async function executePaperOrder(signal, context, options) {
       ...bracket,
       strategyName: signal.strategyName,
       reason: signal.reason,
-      expiresAt: new Date(Date.now() + entryValidityMs()),
+      expiresAt: new Date(Date.now() + resolveEntryValidityMs(signal)),
     });
 
     logger.info(
@@ -825,7 +1102,7 @@ async function executeLiveOrder(signal, options) {
     ...buildBracket(signal, { ...options, bracketOnExchange }),
     strategyName: signal.strategyName,
     reason: signal.reason,
-    expiresAt: resting ? new Date(Date.now() + entryValidityMs()) : null,
+    expiresAt: resting ? new Date(Date.now() + resolveEntryValidityMs(signal)) : null,
   });
 
   try {
@@ -859,6 +1136,8 @@ async function executeLiveOrder(signal, options) {
 
     if (order.status === 'filled') {
       await positionManager.applyOrder(order);
+      // A grid leg that filled the instant it was sent also clears its ladder.
+      await cancelGridSiblings(order);
     }
 
     return { executed: true, mode: 'live', order };
@@ -882,6 +1161,7 @@ module.exports = {
   getExchangeSnapshot,
   handlePaperTick,
   cancelExpiredOrders,
+  cancelGridSiblings,
   placeProtectiveStop,
   placeProtectiveTarget,
   moveProtectiveStop,
