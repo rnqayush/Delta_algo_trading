@@ -21,11 +21,16 @@
 //
 // Bar by bar, on the last CLOSED 1m candle:
 //   1. rebuild the three EMAs (no look-ahead);
-//   2. look for the long/short rule on this bar;
+//   2. look for the long/short rule on this bar, faded if the IST clock is in
+//      the inverted window (see the schedule below);
 //   3. flat -> enter at market in the signal's direction;
 //      holding the other side -> close at market (reduce-only) and let the
 //      next cycle open the reverse leg;
-//      already holding the signal's side -> stand down.
+//      already holding the signal's side -> stand down;
+//   4. outside both windows -> close any position and take no new entries.
+//
+// TIME-OF-DAY SCHEDULE (IST): 09:00-18:00 trade the rules as written;
+// 22:00-06:00 trade the faded rules; the rest of the clock is flat.
 
 const MA_LEN_1 = 2; // EMA 1 length (source default)
 const MA_LEN_2 = 4; // EMA 2 length (source default)
@@ -42,14 +47,34 @@ const MIN_BARS = 25;
 //            risk manager is relaxed — only the daily-loss check.
 const HALT_ON_DAILY_LOSS = false;
 
-// The published (non-faded) mapping, kept as an explicit switch:
-//   false -> the rules as written (buy the EMA3 cross-under, sell the cross-over)
-//   true  -> the fade of the fade (buy the cross-over, sell the cross-under)
-// The flip, when used, is applied to the side we intend to HOLD (signalSide),
+// ---------------------------------------------------------------------------
+// Time-of-day schedule (Indian Standard Time, UTC+05:30)
+// ---------------------------------------------------------------------------
+// The signal mapping is switched by the clock, in IST:
+//   09:00 - 18:00 IST -> rules as written (INVERT = false)
+//   22:00 - 06:00 IST -> faded            (INVERT = true)
+//   everything else   -> OFF: no new entries; any open position is closed.
+// The flip (when used) is applied to the side we intend to HOLD (signalSide),
 // never to the order action — buildEntry still does BUY-for-long / SELL-for-
-// short. That keeps `signalSide === position.side`, which is what the reverse-
-// on-opposite-signal test compares.
-const INVERT_SIGNALS = true;
+// short, keeping `signalSide === position.side` (what the reverse-on-opposite-
+// signal test compares).
+const TZ_OFFSET_MINUTES = 5 * 60 + 30; // IST = UTC+05:30
+
+const NORMAL_WINDOW = { from: 9, to: 18 }; // [09:00, 18:00) IST, invert off
+const INVERT_WINDOW = { from: 22, to: 6 }; // [22:00, 06:00) IST, invert on (wraps midnight)
+
+// Maps an epoch-seconds bar time to its IST session.
+//   normal -> trade the rules as written
+//   invert -> trade the faded rules
+//   off    -> trade nothing and flatten
+function sessionAt(epochSeconds) {
+  const localMinutes = Math.floor(((((epochSeconds + TZ_OFFSET_MINUTES * 60) % 86400) + 86400) % 86400) / 60);
+  const hour = localMinutes / 60;
+  const within = (w) => (w.from < w.to ? hour >= w.from && hour < w.to : hour >= w.from || hour < w.to);
+  if (within(NORMAL_WINDOW)) return { state: 'normal', invert: false };
+  if (within(INVERT_WINDOW)) return { state: 'invert', invert: true };
+  return { state: 'off', invert: false };
+}
 
 // Order size in CONTRACTS (Delta "lots"). This is the size every entry sends:
 //   > 0 -> that exact number of contracts, and it WINS over
@@ -58,7 +83,7 @@ const INVERT_SIGNALS = true;
 //          from percent_of_equity (10% notional), floored at minContracts.
 // Keep it inside RISK_MAX_ORDER_QUANTITY / RISK_MAX_POSITION_SIZE or the risk
 // manager will reject the order.
-const LOTS = 1;
+const LOTS = 2;
 
 // ---------------------------------------------------------------------------
 // Indicators
@@ -133,6 +158,8 @@ class EmaSlopeCross1m {
     this.ma3 = null; // EMA(close, MA_LEN_3)
     this.signalSide = null; // 'long' | 'short' — the side to hold after the last signal
     this.entryDone = false; // whether that signal has already been acted on
+    this.sessionState = null; // last IST session seen: 'normal' | 'invert' | 'off'
+    this.invertActive = false; // whether the current session fades the signal
     this.lastReason = '';
   }
 
@@ -204,7 +231,7 @@ class EmaSlopeCross1m {
 
     let long = xUnderMA3 || (dPrice < 0 && dMA1 < 0 && xUnderMA1 && dMA2 > 0);
     let short = xOverMA3 || (dPrice > 0 && dMA1 > 0 && xOverMA1 && dMA2 < 0);
-    if (INVERT_SIGNALS) {
+    if (this.invertActive) {
       const t = long;
       long = short;
       short = t;
@@ -268,6 +295,18 @@ class EmaSlopeCross1m {
     const last = candles[candles.length - 1];
     if (!last || !last.time) return { action: 'HOLD', reason: 'no closed 1m candle yet' };
 
+    // IST session for the bar we are deciding on: normal / invert / off.
+    const session = sessionAt(last.time);
+    // Crossing a session boundary clears the stale signal, so a window always
+    // starts from a FRESH rule — a pre-window signal is never carried across
+    // (and never re-interpreted under the new invert setting).
+    if (session.state !== this.sessionState) {
+      this.sessionState = session.state;
+      this.signalSide = null;
+      this.entryDone = false;
+    }
+    this.invertActive = session.invert;
+
     // One signal decision per closed 1m bar. The decision BELOW still runs on
     // every tick, so a pending close or entry is acted on without waiting a bar.
     if (last.time !== this.lastBarTime) {
@@ -278,6 +317,21 @@ class EmaSlopeCross1m {
 
     const positions = Array.isArray(state.positions) ? state.positions : [];
     const position = positions[0] || null;
+
+    // --- outside the trading windows: stand down ----------------------------
+    // 09:00-18:00 normal and 22:00-06:00 inverted are the only live windows; the
+    // rest of the clock trades nothing and flattens anything still open.
+    if (session.state === 'off') {
+      if (position) {
+        return {
+          action: 'CLOSE',
+          symbol: this.symbol,
+          strategyName: this.name,
+          reason: `outside trading windows (IST) -> flatten ${position.side}`,
+        };
+      }
+      return { action: 'HOLD', reason: 'outside trading windows: 09:00-18:00 normal, 22:00-06:00 inverted (IST)' };
+    }
 
     // --- holding a position -------------------------------------------------
     if (position) {
