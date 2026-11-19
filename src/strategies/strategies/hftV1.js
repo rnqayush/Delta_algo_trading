@@ -1,4 +1,4 @@
-// HFTV1 — a 1-MINUTE breakout scalper on EVAAUSD.
+// HFTV1 — a 1-MINUTE fade (mean-reversion) scalper on EVAAUSD.
 //
 // The rules, as specified:
 //   * instruments: EVAAUSD only. evaluate() holds on anything else,
@@ -6,26 +6,25 @@
 //     symbols in TRADE_SYMBOLS below in TRADING_SYMBOLS in .env and set
 //     ACTIVE_STRATEGY = 'HFTV1' in strategyManager.js.
 //   * timeframe  : 1m.
-//   * entry      : a BREAKOUT of the previous CLOSED 1m candle's HIGH or LOW —
-//     price above that high opens a BUY, price below that low opens a SELL. One
-//     trade per bar.
-//   * exit       : a real stop and a real target, both placed at entry and both
-//     a PERCENT of the fill — the target further out than the stop, so one
-//     winner pays for more than one loser. Whichever price touches first is
-//     flattened at market. If neither is touched within MAX_HOLD_BARS candles
-//     the trade is flattened on that candle's close (the time stop).
+//   * entry      : a FADE of the previous CLOSED 1m candle's range — a break of
+//     its HIGH opens a SHORT, a break of its LOW opens a LONG. This is the
+//     opposite of a breakout follower: the bar is expected to snap back.
+//     One trade per bar. Set INVERT_SIGNALS below to flip every side.
+//   * exit       : book the result the instant the trade moves — the moment the
+//     mark leaves the fill the position is flattened at market, the profit
+//     booked when it is green and the loss booked when it is red.
 //
 // So the life of a trade is: the previous candle's high/low arm the bar, price
-// takes one of the two levels, and the trade then runs to its stop, its target,
-// or the time stop — whichever comes first.
+// pokes through one of them and the fade is opened, and the trade is cut the
+// instant the mark leaves the fill — green books the profit, red books the loss.
 //
 // Bar by bar:
-//   1. a new 1m candle closes -> its HIGH and LOW become the breakout levels for
-//      the bar that starts now;
-//   2. the first tick that trades through one of them opens the trade and fixes
-//      its stop (STOP_PCT) and target (TARGET_PCT);
-//   3. the trade is flattened the moment price touches the stop or the target,
-//      otherwise on the close of the MAX_HOLD_BARS'th candle after entry.
+//   1. a new 1m candle closes -> its HIGH and LOW become the fade levels for the
+//      bar that starts now;
+//   2. the first tick that trades through one of them opens the fade — the high
+//      is sold, the low is bought;
+//   3. the trade is flattened the instant the mark is off the fill — the profit
+//      booked when green, the loss booked when red.
 
 const { normalizeSymbol } = require('../../utils/helpers');
 
@@ -45,24 +44,15 @@ const MIN_BARS = 5;
 //            risk manager is relaxed — only the daily-loss check.
 const HALT_ON_DAILY_LOSS = false;
 
-// --- exit model: a stop, a target and a time stop --------------------------
-// The earlier rules (flatten the instant the trade went green, or the instant
-// it went red) fired on a single tick. That leaves no room: the average loser
-// came out about the size of the average winner, so the sum only ever bled fees.
-// This replaces both with a bracket measured in PERCENT of the fill:
-//
-//   stop   : STOP_PCT% against the fill  — the loss a loser is allowed to run
-//   target : TARGET_PCT% with the fill   — the profit a winner is asked to make
-//   time   : flattened on the close of the MAX_HOLD_BARS'th candle after entry
-//
-// Keep TARGET_PCT > STOP_PCT — that is the whole point, a winner has to pay for
-// more than one loser. e.g. STOP 2 / TARGET 6 means one win covers ~3 losses
-// before fees, i.e. the break-even win rate is STOP / (STOP + TARGET) = 25%.
-const STOP_PCT = 2;      // % adverse move that stops the trade out
-const TARGET_PCT = 6;    // % favourable move that books the profit (keep > STOP_PCT)
-const MAX_HOLD_BARS = 60; // candles a trade may live before the time stop
+// Flip every signal without touching any of the rules:
+//   false -> the fade as specified above: a break of the high is SOLD and a
+//            break of the low is BOUGHT.
+//   true  -> the signals are inverted: a break of the high is BOUGHT and a break
+//            of the low is SOLD (i.e. it behaves as a breakout follower).
+// Only the order side flips — the levels, the sizing and the exits are unchanged.
+const INVERT_SIGNALS = false;
 
-// Order size in CONTRACTS (Delta "lots"). This is the size the breakout entry
+// Order size in CONTRACTS (Delta "lots"). This is the size the fade entry
 // sends:
 //   > 0 -> that exact number of contracts, and it WINS over
 //          STRATEGY_FIXED_CONTRACTS in .env (which is ignored for this strategy).
@@ -80,10 +70,10 @@ class HftV1 {
   constructor() {
     this.name = 'HFTV1';
     this.description =
-      `HFTV1 1m breakout on ${TRADE_SYMBOLS.join(' / ')}: a break of the previous closed candle's ` +
-      'high buys, a break of its low sells. Each trade carries a stop and a ' +
-      'target (a percent of the fill each, the target the wider) and is cut at ' +
-      'whichever is touched first, or on the close of a fixed number of candles.';
+      `HFTV1 1m fade on ${TRADE_SYMBOLS.join(' / ')}: a break of the previous closed candle's ` +
+      'high is sold, a break of its low is bought. The trade is flattened the ' +
+      'instant the mark leaves the fill — the profit booked when green, the loss ' +
+      'booked when red.';
     // Left blank on purpose: the engine sets this to the instrument this instance
     // was built for on start (see tradingEngine.applyProductSettings), so the
     // instrument is configured in one place — .env — and can never disagree with
@@ -122,26 +112,10 @@ class HftV1 {
 
   reset() {
     this.lastBarTime = 0; // last closed 1m bar already evaluated
-    this.refHigh = null; // HIGH of that bar — the upside breakout level
-    this.refLow = null; // LOW of that bar — the downside breakout level
+    this.refHigh = null; // HIGH of that bar — the upside fade level (sell)
+    this.refLow = null; // LOW of that bar — the downside fade level (buy)
     this.tradedThisBar = false; // this bar has already produced its trade
-    this.stopPrice = 0; // stop of the open trade (0 = none)
-    this.targetPrice = 0; // target of the open trade (0 = none)
-    this.barsHeld = 0; // candles elapsed since that trade was entered
     this.lastReason = '';
-  }
-
-  // Stop and target for one entry, both a percent of the fill, the target the
-  // wider. `side` may be the order side ('buy'/'sell') or the position side
-  // ('long'/'short'); anything that is neither 'sell' nor 'short' is treated as
-  // long.
-  levelsFor(side, entry) {
-    const short = side === 'sell' || side === 'short';
-    const stopDist = entry * (STOP_PCT / 100);
-    const tgtDist = entry * (TARGET_PCT / 100);
-    return short
-      ? { stop: entry + stopDist, target: entry - tgtDist }
-      : { stop: entry - stopDist, target: entry + tgtDist };
   }
 
   // percent_of_equity sizing (10% of equity notional), floored at the exchange
@@ -167,31 +141,26 @@ class HftV1 {
     return Number(price).toFixed(decimals);
   }
 
-  // One breakout entry. A market order: the level has already been taken, so the
-  // fill is the whole point of the trade. This marks the bar as traded so a cut
-  // (or a stop) cannot immediately re-arm the same breakout.
-  buildEntry(side, price) {
+  // One fade entry. A market order: the level has already been taken, so the
+  // fill is the whole point of the trade. `level` is which level armed it
+  // ('high' or 'low') and `levelPrice` its price, so the reason stays honest
+  // when INVERT_SIGNALS flips the side. This marks the bar as traded so a cut
+  // cannot immediately re-arm the same fade.
+  buildEntry(side, price, level, levelPrice) {
     const quantity = this.sizeContracts(price);
     if (!(quantity > 0)) return { action: 'HOLD', reason: 'size rounds to zero contracts' };
 
     this.tradedThisBar = true;
 
-    // Fix the bracket now, from the fill: it does not move while the trade lives.
-    const { stop, target } = this.levelsFor(side, price);
-    this.stopPrice = stop;
-    this.targetPrice = target;
-    this.barsHeld = 0;
-
     return {
-      action: side === 'buy' ? 'BUY' : 'SELL',
+      action: side === 'sell' ? 'SELL' : 'BUY',
       symbol: this.symbol,
       quantity,
       orderType: 'market_order',
       strategyName: this.name,
       reason:
-        side === 'buy'
-          ? `HFTV1 breakout up: price took the ${this.fmt(this.refHigh)} 1m high — buying`
-          : `HFTV1 breakout down: price took the ${this.fmt(this.refLow)} 1m low — selling`,
+        `HFTV1${INVERT_SIGNALS ? ' inverted' : ''}: price took the ${this.fmt(levelPrice)} 1m ` +
+        `${level} — ${side === 'sell' ? 'shorting' : 'buying'}`,
       meta: {
         // The exits are strategy-driven, not a resting bracket.
         exitMode: 'signal',
@@ -222,13 +191,13 @@ class HftV1 {
     const last = candles[candles.length - 1];
     if (!last || !last.time) return { action: 'HOLD', reason: 'no closed 1m candle yet' };
 
-    // Last market price. The ticker is what the breakout is measured against and
+    // Last market price. The ticker is what the fade is measured against and
     // what the entry/exit really happens at; the closed bar is only a fallback so
     // the value is never missing.
     const price = Number(marketData.price) || Number(last.close) || 0;
 
-    // A new 1m candle has closed: its HIGH and LOW arm the breakout levels for
-    // the bar that starts now.
+    // A new 1m candle has closed: its HIGH and LOW arm the fade levels for the
+    // bar that starts now.
     let newBar = false;
     if (last.time !== this.lastBarTime) {
       newBar = true;
@@ -237,85 +206,76 @@ class HftV1 {
       this.refLow = Number(last.low);
       this.tradedThisBar = false;
       this.lastReason =
-        `breakout levels armed: ${this.fmt(this.refHigh)} high / ${this.fmt(this.refLow)} low`;
+        `fade levels armed: ${this.fmt(this.refHigh)} high / ${this.fmt(this.refLow)} low`;
     }
 
     const positions = Array.isArray(state.positions) ? state.positions : [];
     const position = positions[0] || null;
 
-    // --- holding the trade the breakout produced ---------------------------
+    // --- holding the trade the fade produced -------------------------------
     if (position) {
       const entry = Number(position.entryPrice) || 0;
       const short = position.side === 'short';
 
       if (entry > 0 && price > 0) {
-        // The bracket was fixed at entry; if the engine restarted while the
-        // position was open it is missing, so derive it from the fill again.
-        let stop = this.stopPrice;
-        let target = this.targetPrice;
-        if (!(stop > 0) || !(target > 0)) {
-          ({ stop, target } = this.levelsFor(position.side, entry));
-        }
+        // 1. Immediate profit -> book it the instant the mark is on the right
+        // side of the fill.
+        const inProfit = short ? price < entry : price > entry;
+        // 2. Immediate loss -> book it the instant the mark is on the wrong side.
+        const inLoss = short ? price > entry : price < entry;
 
-        // 1. Stop touched -> the loss is taken at market.
-        if (short ? price >= stop : price <= stop) {
+        if (inProfit || inLoss) {
           return {
             action: 'CLOSE',
             symbol: this.symbol,
             strategyName: this.name,
-            reason:
-              `stop hit: ${position.side} entered at ${this.fmt(entry)}, mark ${this.fmt(price)} ` +
-              `reached the ${this.fmt(stop)} stop`,
+            reason: inProfit
+              ? `profit booked: ${position.side} entered at ${this.fmt(entry)}, mark ${this.fmt(price)} is green`
+              : `loss booked: ${position.side} entered at ${this.fmt(entry)}, mark ${this.fmt(price)} is red`,
           };
         }
 
-        // 2. Target touched -> the profit is booked at market.
-        if (short ? price <= target : price >= target) {
-          return {
-            action: 'CLOSE',
-            symbol: this.symbol,
-            strategyName: this.name,
-            reason:
-              `target hit: ${position.side} entered at ${this.fmt(entry)}, mark ${this.fmt(price)} ` +
-              `reached the ${this.fmt(target)} target`,
-          };
-        }
-
-        // 3. Time stop -> neither was touched, so flatten on the close of the
-        // MAX_HOLD_BARS'th candle after entry.
+        // 3. Mark still exactly on the fill at a candle close -> flatten there
+        //    rather than sit on a dead-flat trade.
         if (newBar) {
-          this.barsHeld += 1;
-          if (this.barsHeld >= MAX_HOLD_BARS) {
-            return {
-              action: 'CLOSE',
-              symbol: this.symbol,
-              strategyName: this.name,
-              reason:
-                `time stop: ${position.side} held ${this.barsHeld} candles with no stop or target ` +
-                `touch — closing on the ${this.fmt(last.close)} close`,
-            };
-          }
+          return {
+            action: 'CLOSE',
+            symbol: this.symbol,
+            strategyName: this.name,
+            reason:
+              `flat close: ${position.side} entered at ${this.fmt(entry)}, mark unmoved — ` +
+              `closed at the ${this.fmt(last.close)} candle close`,
+          };
         }
       }
 
       return { action: 'HOLD', reason: `holding ${position.side}; ${this.lastReason}` };
     }
 
-    // --- flat: wait for one of the levels to break --------------------------
-    // Any bracket left over from a closed trade is stale.
-    this.stopPrice = 0;
-    this.targetPrice = 0;
-    this.barsHeld = 0;
-
+    // --- flat: wait for one of the fade levels to break ---------------------
     if (price <= 0) return { action: 'HOLD', reason: 'no live price' };
     if (this.tradedThisBar) {
       return { action: 'HOLD', reason: 'this 1m bar has already traded' };
     }
 
-    if (this.refHigh > 0 && price > this.refHigh) return this.buildEntry('buy', price);
-    if (this.refLow > 0 && price < this.refLow) return this.buildEntry('sell', price);
+    // Which level broke. Left = the fade side; INVERT_SIGNALS then flips it.
+    let level = null;
+    let levelPrice = 0;
+    if (this.refHigh > 0 && price > this.refHigh) {
+      level = 'high';
+      levelPrice = this.refHigh;
+    } else if (this.refLow > 0 && price < this.refLow) {
+      level = 'low';
+      levelPrice = this.refLow;
+    }
 
-    return { action: 'HOLD', reason: `no breakout yet; ${this.lastReason}` };
+    if (level) {
+      const fadeSide = level === 'high' ? 'sell' : 'buy';
+      const side = INVERT_SIGNALS ? (fadeSide === 'sell' ? 'buy' : 'sell') : fadeSide;
+      return this.buildEntry(side, price, level, levelPrice);
+    }
+
+    return { action: 'HOLD', reason: `no fade level yet; ${this.lastReason}` };
   }
 }
 
