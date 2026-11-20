@@ -56,7 +56,7 @@ const HALT_ON_DAILY_LOSS = false;
 //   true  -> the signals are inverted: a break of the high is BOUGHT and a break
 //            of the low is SOLD (i.e. it behaves as a breakout follower).
 // Only the order side flips — the levels, the sizing and the exits are unchanged.
-const INVERT_SIGNALS = true;
+const INVERT_SIGNALS = false;
 
 // Order size in CONTRACTS (Delta "lots"). This is the size the fade entry
 // sends:
