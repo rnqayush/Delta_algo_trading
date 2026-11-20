@@ -36,6 +36,11 @@
 //   --capital     starting equity, default 10000
 //   --fee/--slip  bps per leg, defaults 5 / 1 (Delta taker ~0.05%)
 //   --free        ignore fees and slippage entirely
+//   --monthly     instead of the 4-variant table, print one calendar-month row
+//                 per month over the window, using the LIVE configuration
+//                 (published direction, no ATR stop, 10m time stop, 15m cooldown)
+//   --months      number of calendar months for --monthly, default 12
+//   --invert      with --monthly, use the fade instead of the published mapping
 //
 //   NOTE: fills are at the signal bar's CLOSE (the stop is intrabar); the live
 //   engine enters at market a moment later, so absolute PnL will differ a
@@ -112,6 +117,7 @@ function simulate(candles, opts) {
       net: net * 100,
       bars: exitIdx - entryIdx,
       reason,
+      t: candles[entryIdx].time, // entry timestamp (for month bucketing)
     });
     // A losing (gross) close starts the cooldown — the live rule scores the
     // close on the price move, not on fees.
@@ -203,6 +209,105 @@ function metrics(candles, opts) {
 }
 
 // ---------------------------------------------------------------------------
+// Month-by-month report
+// ---------------------------------------------------------------------------
+
+const monthKey = (sec) => {
+  const d = new Date(sec * 1000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
+// Runs the strategy once over the whole 12-month span and buckets every trade
+// by the calendar month it was OPENED in, so each month shows what the rule
+// actually did inside it (a strategy can be net-flat over a year and still swing
+// wildly month to month).
+async function monthlyReport(symbols, opts) {
+  const { months, atrPeriod, atrMult, timeStop, cooldown, invert, notional, capital, costPerLeg } = opts;
+  const now = Math.floor(Date.now() / 1000);
+  const dNow = new Date(now * 1000);
+  const startMonth = Date.UTC(dNow.getUTCFullYear(), dNow.getUTCMonth() - (months - 1), 1) / 1000;
+  const fetchFrom = startMonth - 2 * 86400; // 2 days of indicator warm-up before the window
+
+  console.log(
+    `\nOpen Close Cross R5.1 — SMMA(${MA_LEN}) on 1m | month-by-month, last ${months} months\n` +
+      `  config : ${invert ? 'fade (INVERT_SIGNALS=true)' : 'published (INVERT_SIGNALS=false)'} | ` +
+      `ATR(${atrPeriod})x${atrMult} stop, ${timeStop}m time stop, ${cooldown}m loss cooldown\n` +
+      `  costs  : ${costPerLeg > 0 ? `${(costPerLeg * 2 * 1e4).toFixed(1)}bps/flip` : 'NONE (--free)'} | ` +
+      `notional ${notional}x equity, capital ${capital}`
+  );
+
+  for (const symbol of symbols) {
+    let candles;
+    try {
+      ({ candles } = await downloadCandles({ symbol, resolution: '1m', fromSec: fetchFrom, toSec: now }));
+    } catch (error) {
+      console.log(`\n${symbol}: skipped — ${error.message}`);
+      continue;
+    }
+    if (candles.length < 100) {
+      console.log(`\n${symbol}: skipped — only ${candles.length} bars`);
+      continue;
+    }
+
+    const { trades } = simulate(candles, {
+      invert, atrPeriod, atrMult, timeStopMin: timeStop, cooldownMin: cooldown, notional, capital, costPerLeg,
+    });
+
+    // keep only trades opened inside the window, then walk them in order so the
+    // overall return / drawdown are the real compounded path, not a sum.
+    const inWindow = trades.filter((t) => t.t >= startMonth);
+    const stats = new Map();
+    let eq = 1;
+    let peak = 1;
+    let maxDD = 0;
+    for (const t of inWindow) {
+      const key = monthKey(t.t);
+      let s = stats.get(key);
+      if (!s) { s = { n: 0, wins: 0, totNet: 0, ret: 1 }; stats.set(key, s); }
+      s.n += 1;
+      if (t.net > 0) s.wins += 1;
+      s.totNet += t.net;
+      s.ret *= 1 + t.net / 100;
+      eq *= 1 + t.net / 100;
+      if (eq > peak) peak = eq;
+      maxDD = Math.max(maxDD, ((peak - eq) / peak) * 100);
+    }
+
+    const days0 = ((candles[candles.length - 1].time - candles[0].time) / 86400).toFixed(0);
+    console.log(`\n${symbol}  (${candles.length} bars ~${days0}d, ${inWindow.length} trades in window)`);
+    console.log(
+      `  ${pad('month', 8)} | ${pad('trades', 6, true)} | ${pad('win%', 5, true)} | ${pad('avg%', 7, true)} | ` +
+        `${pad('net%', 8, true)} | ${pad('return%', 8, true)}`
+    );
+    console.log('  ' + '-'.repeat(57));
+
+    for (let k = 0; k < months; k += 1) {
+      const dt = new Date(Date.UTC(dNow.getUTCFullYear(), dNow.getUTCMonth() - (months - 1) + k, 1));
+      const key = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+      const s = stats.get(key);
+      if (!s) {
+        console.log(`  ${pad(key, 8)} | ${pad(0, 6, true)} | ${pad('-', 5, true)} | ${pad('-', 7, true)} | ${pad('-', 8, true)} | ${pad('-', 8, true)}`);
+        continue;
+      }
+      console.log(
+        `  ${pad(key, 8)} | ${pad(s.n, 6, true)} | ${pad(fmt((s.wins / s.n) * 100, 1), 5, true)} | ` +
+          `${pad(signed(s.totNet / s.n, 3), 7, true)} | ${pad(signed(s.totNet, 1), 8, true)} | ${pad(signed((s.ret - 1) * 100, 2), 8, true)}`
+      );
+    }
+
+    const totalWins = inWindow.filter((t) => t.net > 0).length;
+    console.log('  ' + '-'.repeat(57));
+    console.log(
+      `  ${pad('TOTAL', 8)} | ${pad(inWindow.length, 6, true)} | ` +
+        `${pad(inWindow.length ? fmt((totalWins / inWindow.length) * 100, 1) : '-', 5, true)} | ` +
+        `${pad(inWindow.length ? signed(inWindow.reduce((s, t) => s + t.net, 0) / inWindow.length, 3) : '-', 7, true)} | ` +
+        `${pad(signed(inWindow.reduce((s, t) => s + t.net, 0), 1), 8, true)} | ${pad(signed((eq - 1) * 100, 2), 8, true)}`
+    );
+    console.log(`  compounded window return ${signed((eq - 1) * 100, 2)}%  |  maxDD (trade-close) ${fmt(maxDD, 1)}%`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // CLI
 // ---------------------------------------------------------------------------
 
@@ -247,6 +352,24 @@ async function main() {
     capital: num(args.capital, DEFAULTS.capital),
     costPerLeg,
   };
+
+  // --monthly: one calendar-month-bucketed table over the last N months, using
+  // the LIVE port's configuration (published direction, ATR stop disabled,
+  // TIME_STOP_MIN=10, LOSS_COOLDOWN_MIN=15) unless overridden on the CLI.
+  if (args.monthly) {
+    await monthlyReport(symbols, {
+      months: num(args.months, 12),
+      invert: args.invert ? true : false,
+      atrPeriod: controls.atrPeriod,
+      atrMult: args['atr-mult'] !== undefined ? controls.atrMult : 0, // live ATR_STOP_MULT=0
+      timeStop: controls.timeStop,
+      cooldown: controls.cooldown,
+      notional: baseOpts.notional,
+      capital: baseOpts.capital,
+      costPerLeg,
+    });
+    return;
+  }
 
   // baseline / +ATR stop / +ATR+time / +ALL three controls. With
   // --cooldown-sweep the table becomes one row per cooldown length (ATR stop +

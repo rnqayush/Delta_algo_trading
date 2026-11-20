@@ -43,6 +43,7 @@
 //   --symbols    comma-separated (default TRADING_SYMBOL or BTCUSD)
 //   --tf         candle resolution, default 1m
 //   --days       look-back window in days, default 7
+//   --offset     end the window this many days ago (disjoint walk-forward slices), default 0
 //   --atr        ATR period, default 10
 //   --mult       ATR multiplier, default 3.0
 //   --smaatr     use sma(tr, Periods) instead of ta.atr (changeATR=false)
@@ -57,7 +58,7 @@
 const { downloadCandles, RESOLUTION_SECONDS } = require('./lib/data');
 
 const DEFAULTS = {
-  tf: '1m', days: 7, atr: 10, mult: 3.0, smaatr: false,
+  tf: '1m', days: 7, offset: 0, atr: 10, mult: 3.0, smaatr: false,
   notional: 1.0, capital: 10000, fee: 3, slip: 1, free: false, invert: false,
 };
 
@@ -295,6 +296,7 @@ async function main() {
   }
 
   const days = num(args.days, DEFAULTS.days);
+  const offset = num(args.offset, DEFAULTS.offset);
   const symbols = (args.symbols ? String(args.symbols).split(',') : [process.env.TRADING_SYMBOL || 'BTCUSD'])
     .map((s) => s.trim().toUpperCase())
     .filter(Boolean);
@@ -323,7 +325,7 @@ async function main() {
 
   const rows = [];
   for (const symbol of symbols) {
-    const toSec = Math.floor(Date.now() / 1000);
+    const toSec = Math.floor(Date.now() / 1000) - offset * 86400;
     const fromSec = toSec - days * 86400;
     try {
       const { candles } = await downloadCandles({ symbol, resolution: tf, fromSec, toSec });

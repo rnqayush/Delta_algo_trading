@@ -17,6 +17,7 @@ const MAX_ROWS_PER_REQUEST = 4000;
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
 const RESOLUTION_SECONDS = {
+  '5s': 5,
   '1m': 60,
   '3m': 180,
   '5m': 300,

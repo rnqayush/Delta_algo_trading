@@ -1,30 +1,36 @@
-// HFTV1 — a 1-MINUTE fade (mean-reversion) scalper on EVAAUSD.
+// HFTV1 — a 5-MINUTE fade (mean-reversion) scalper on EVAAUSD.
 //
 // The rules, as specified:
 //   * instruments: EVAAUSD only. evaluate() holds on anything else,
 //     so the file can never trade a symbol nobody asked for. To run it, keep the
 //     symbols in TRADE_SYMBOLS below in TRADING_SYMBOLS in .env and set
 //     ACTIVE_STRATEGY = 'HFTV1' in strategyManager.js.
-//   * timeframe  : 1m.
-//   * entry      : a FADE of the previous CLOSED 1m candle's range — a break of
-//     its HIGH opens a SHORT, a break of its LOW opens a LONG. This is the
-//     opposite of a breakout follower: the bar is expected to snap back.
-//     One trade per bar. Set INVERT_SIGNALS below to flip every side.
-//   * exit       : book the result the instant the trade moves — the moment the
-//     mark leaves the fill the position is flattened at market, the profit
-//     booked when it is green and the loss booked when it is red.
+//   * timeframe  : 5m — the fade levels come from the previous CLOSED 5m candle
+//     (the engine's candles5m feed; STRATEGY_CANDLES_5M must be > 0 in .env).
+//   * entry      : a FADE of that candle's range — a break of its HIGH opens a
+//     SHORT, a break of its LOW opens a LONG. This is the opposite of a breakout
+//     follower: the bar is expected to snap back. One trade per 5m bar. Set
+//     INVERT_SIGNALS below to flip every side.
+//   * exit       : two different rules depending on which side of the fill the
+//     mark is on:
+//       - RED   -> the loss is booked the instant the mark is on the wrong side
+//         of the fill (close at market);
+//       - GREEN -> the profit is NOT booked immediately. The trade is held for
+//         one minute (timed on the 1m feed) and then closed at the market,
+//         i.e. at that 1m candle's close.
 //
-// So the life of a trade is: the previous candle's high/low arm the bar, price
-// pokes through one of them and the fade is opened, and the trade is cut the
-// instant the mark leaves the fill — green books the profit, red books the loss.
+// So the life of a trade is: the previous 5m candle's high/low arm the bar,
+// price pokes through one of them and the fade is opened, a red mark books the
+// loss at once, and a green mark is given one minute to run before it is cut at
+// the 1m close.
 //
 // Bar by bar:
-//   1. a new 1m candle closes -> its HIGH and LOW become the fade levels for the
+//   1. a new 5m candle closes -> its HIGH and LOW become the fade levels for the
 //      bar that starts now;
 //   2. the first tick that trades through one of them opens the fade — the high
 //      is sold, the low is bought;
-//   3. the trade is flattened the instant the mark is off the fill — the profit
-//      booked when green, the loss booked when red.
+//   3. red -> close at market immediately; green -> hold one minute, then close
+//      at the 1m candle's close.
 
 const { normalizeSymbol } = require('../../utils/helpers');
 
@@ -50,7 +56,7 @@ const HALT_ON_DAILY_LOSS = false;
 //   true  -> the signals are inverted: a break of the high is BOUGHT and a break
 //            of the low is SOLD (i.e. it behaves as a breakout follower).
 // Only the order side flips — the levels, the sizing and the exits are unchanged.
-const INVERT_SIGNALS = false;
+const INVERT_SIGNALS = true;
 
 // Order size in CONTRACTS (Delta "lots"). This is the size the fade entry
 // sends:
@@ -70,10 +76,9 @@ class HftV1 {
   constructor() {
     this.name = 'HFTV1';
     this.description =
-      `HFTV1 1m fade on ${TRADE_SYMBOLS.join(' / ')}: a break of the previous closed candle's ` +
-      'high is sold, a break of its low is bought. The trade is flattened the ' +
-      'instant the mark leaves the fill — the profit booked when green, the loss ' +
-      'booked when red.';
+      `HFTV1 5m fade on ${TRADE_SYMBOLS.join(' / ')}: a break of the previous closed 5m candle's ` +
+      'high is sold, a break of its low is bought. A red mark books the loss at once; ' +
+      'a green mark is held one minute and then closed at the 1m candle close.';
     // Left blank on purpose: the engine sets this to the instrument this instance
     // was built for on start (see tradingEngine.applyProductSettings), so the
     // instrument is configured in one place — .env — and can never disagree with
@@ -111,10 +116,11 @@ class HftV1 {
   }
 
   reset() {
-    this.lastBarTime = 0; // last closed 1m bar already evaluated
-    this.refHigh = null; // HIGH of that bar — the upside fade level (sell)
-    this.refLow = null; // LOW of that bar — the downside fade level (buy)
-    this.tradedThisBar = false; // this bar has already produced its trade
+    this.lastBarTime = 0; // last closed 5m bar already evaluated (arms the levels)
+    this.refHigh = null; // HIGH of that 5m bar — the upside fade level (sell)
+    this.refLow = null; // LOW of that 5m bar — the downside fade level (buy)
+    this.tradedThisBar = false; // this 5m bar has already produced its trade
+    this.entryBarTime1m = 0; // 1m bar time the open trade was first seen at (loss timer)
     this.lastReason = '';
   }
 
@@ -159,7 +165,7 @@ class HftV1 {
       orderType: 'market_order',
       strategyName: this.name,
       reason:
-        `HFTV1${INVERT_SIGNALS ? ' inverted' : ''}: price took the ${this.fmt(levelPrice)} 1m ` +
+        `HFTV1${INVERT_SIGNALS ? ' inverted' : ''}: price took the ${this.fmt(levelPrice)} 5m ` +
         `${level} — ${side === 'sell' ? 'shorting' : 'buying'}`,
       meta: {
         // The exits are strategy-driven, not a resting bracket.
@@ -183,30 +189,41 @@ class HftV1 {
       };
     }
 
-    const candles = Array.isArray(marketData.candles1m) ? marketData.candles1m : [];
-    if (candles.length < MIN_BARS) {
-      return { action: 'HOLD', reason: `warming up (${candles.length}/${MIN_BARS} 1m candles)` };
+    // Fade levels come from the 5m feed; the 1-minute loss timer comes from the
+    // 1m feed. The engine fetches both (STRATEGY_CANDLES_5M / STRATEGY_CANDLES_1M).
+    const candles5m = Array.isArray(marketData.candles5m) ? marketData.candles5m : [];
+    if (candles5m.length < MIN_BARS) {
+      return { action: 'HOLD', reason: `warming up (${candles5m.length}/${MIN_BARS} 5m candles)` };
     }
 
-    const last = candles[candles.length - 1];
-    if (!last || !last.time) return { action: 'HOLD', reason: 'no closed 1m candle yet' };
+    const last5 = candles5m[candles5m.length - 1];
+    if (!last5 || !last5.time) return { action: 'HOLD', reason: 'no closed 5m candle yet' };
+
+    const candles1m = Array.isArray(marketData.candles1m) ? marketData.candles1m : [];
+    // The 1-minute loss timer cannot run without the 1m feed, and a losing trade
+    // that can never be timed out is worse than no trade. Refuse to act.
+    if (!candles1m.length) {
+      return {
+        action: 'HOLD',
+        reason: 'HFTV1 needs the 1m feed for the 1-minute loss timer (set STRATEGY_CANDLES_1M > 0)',
+      };
+    }
+    const last1 = candles1m[candles1m.length - 1];
 
     // Last market price. The ticker is what the fade is measured against and
     // what the entry/exit really happens at; the closed bar is only a fallback so
     // the value is never missing.
-    const price = Number(marketData.price) || Number(last.close) || 0;
+    const price = Number(marketData.price) || Number(last5.close) || 0;
 
-    // A new 1m candle has closed: its HIGH and LOW arm the fade levels for the
-    // bar that starts now.
-    let newBar = false;
-    if (last.time !== this.lastBarTime) {
-      newBar = true;
-      this.lastBarTime = last.time;
-      this.refHigh = Number(last.high);
-      this.refLow = Number(last.low);
+    // A new 5m candle has closed: its HIGH and LOW arm the fade levels for the
+    // 5m bar that starts now.
+    if (last5.time !== this.lastBarTime) {
+      this.lastBarTime = last5.time;
+      this.refHigh = Number(last5.high);
+      this.refLow = Number(last5.low);
       this.tradedThisBar = false;
       this.lastReason =
-        `fade levels armed: ${this.fmt(this.refHigh)} high / ${this.fmt(this.refLow)} low`;
+        `fade levels armed from the last 5m candle: ${this.fmt(this.refHigh)} high / ${this.fmt(this.refLow)} low`;
     }
 
     const positions = Array.isArray(state.positions) ? state.positions : [];
@@ -217,45 +234,53 @@ class HftV1 {
       const entry = Number(position.entryPrice) || 0;
       const short = position.side === 'short';
 
+      // Remember the 1m bar the trade was first seen on, so the hold timer runs
+      // a full minute from the entry.
+      if (!this.entryBarTime1m) this.entryBarTime1m = last1.time;
+
       if (entry > 0 && price > 0) {
-        // 1. Immediate profit -> book it the instant the mark is on the right
-        // side of the fill.
-        const inProfit = short ? price < entry : price > entry;
-        // 2. Immediate loss -> book it the instant the mark is on the wrong side.
+        // 1. RED -> book the loss right now, at market.
         const inLoss = short ? price > entry : price < entry;
-
-        if (inProfit || inLoss) {
-          return {
-            action: 'CLOSE',
-            symbol: this.symbol,
-            strategyName: this.name,
-            reason: inProfit
-              ? `profit booked: ${position.side} entered at ${this.fmt(entry)}, mark ${this.fmt(price)} is green`
-              : `loss booked: ${position.side} entered at ${this.fmt(entry)}, mark ${this.fmt(price)} is red`,
-          };
-        }
-
-        // 3. Mark still exactly on the fill at a candle close -> flatten there
-        //    rather than sit on a dead-flat trade.
-        if (newBar) {
+        if (inLoss) {
           return {
             action: 'CLOSE',
             symbol: this.symbol,
             strategyName: this.name,
             reason:
-              `flat close: ${position.side} entered at ${this.fmt(entry)}, mark unmoved — ` +
-              `closed at the ${this.fmt(last.close)} candle close`,
+              `loss booked immediately: ${position.side} entered at ${this.fmt(entry)}, ` +
+              `mark ${this.fmt(price)} is red`,
+          };
+        }
+
+        // 2. GREEN (or dead flat) -> keep the profit on for one full minute,
+        //    then close at the 1m candle's close. A newer 1m bar time = a
+        //    minute gone.
+        const heldOneMinute = this.entryBarTime1m && last1.time > this.entryBarTime1m;
+        if (heldOneMinute) {
+          return {
+            action: 'CLOSE',
+            symbol: this.symbol,
+            strategyName: this.name,
+            reason:
+              `profit held 1m: ${position.side} entered at ${this.fmt(entry)}, mark ${this.fmt(price)} green — ` +
+              `closed at the ${this.fmt(last1.close)} 1m close`,
           };
         }
       }
 
-      return { action: 'HOLD', reason: `holding ${position.side}; ${this.lastReason}` };
+      return {
+        action: 'HOLD',
+        reason: `holding ${position.side} in the green, giving it up to 1m; ${this.lastReason}`,
+      };
     }
+
+    // Flat -> the entry timer only means anything while a trade is open.
+    this.entryBarTime1m = 0;
 
     // --- flat: wait for one of the fade levels to break ---------------------
     if (price <= 0) return { action: 'HOLD', reason: 'no live price' };
     if (this.tradedThisBar) {
-      return { action: 'HOLD', reason: 'this 1m bar has already traded' };
+      return { action: 'HOLD', reason: 'this 5m bar has already traded' };
     }
 
     // Which level broke. Left = the fade side; INVERT_SIGNALS then flips it.
