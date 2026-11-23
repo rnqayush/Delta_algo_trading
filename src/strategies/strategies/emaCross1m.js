@@ -4,15 +4,19 @@
 //   * EMA(9) and EMA(13) of the close series, both on the 1m chart.
 //   * LONG  when EMA(9) crosses OVER  EMA(13)  (fast over slow),
 //     SHORT when EMA(9) crosses UNDER EMA(13)  (fast under slow).
-//   * ALWAYS-IN reversal system: there is no stop and no target. The only exit
-//     is the next opposite cross — the open position is closed at market and the
-//     reverse leg is opened on the following cycle, so the account is (almost)
-//     always holding a position.
+//   * ALWAYS-IN reversal system: the primary exit is the next opposite cross —
+//     the open position is closed at market and the reverse leg is opened on the
+//     following cycle, so the account is (almost) always holding a position.
+//   * A hard STOP LOSS caps the downside (see STOP_LOSS_MARGIN_PCT). It travels
+//     with the entry as `stopLoss`, so orderManager rests it reduce-only on the
+//     exchange (and the position manager mirrors it in paper mode), keeping the
+//     position protected even if this process dies. If the stop fires the
+//     strategy sits flat until the next opposite cross.
 //
 // Bar by bar, on the last CLOSED 1m candle:
 //   1. rebuild the two EMAs (no look-ahead);
 //   2. look for a crossover / crossunder on this bar;
-//   3. flat -> enter at market in the signal's direction;
+//   3. flat -> enter at market in the signal's direction (with the stop);
 //      holding the other side -> close at market (reduce-only) and let the
 //      next cycle open the reverse leg;
 //      already holding the signal's side -> stand down.
@@ -22,6 +26,26 @@ const SLOW_LEN = 13;
 
 // The slow EMA needs 13 closes to seed, plus one prior bar for the cross.
 const MIN_BARS = 20;
+
+// Inverts the side we hold, kept as an explicit switch:
+//   false -> bull cross (EMA9 over EMA13) holds a LONG,
+//            bear cross holds a SHORT.   <- the rule as written
+//   true  -> the fade: bull cross holds a SHORT, bear cross holds a LONG.
+// The flip is applied to the side we intend to HOLD (signalSide), never to the
+// order action — buildEntry still does BUY-for-long / SELL-for-short. That
+// keeps `signalSide === position.side`, which is what the reverse-on-opposite-
+// cross test compares.
+const INVERT_SIGNALS = true;
+
+// Fixed stop loss as a fraction of the MARGIN/EQUITY committed to the trade
+// (0.30 = cut the loss at 30%). Because Delta fills by contracts, the margin
+// committed is notional / leverage, so a level worth 30% of that margin sits only
+// 30% / leverage away in PRICE — at 100x that is a 0.30% price move. The price
+// distance is derived in buildEntry from this.leverage (the account's real
+// leverage, filled in by the engine), so the SL P&L is always ~30% of the margin,
+// whatever the leverage. On a LONG the stop sits below entry; a SHORT is mirrored.
+// Set to 0 to disable the stop (pure always-in reversal).
+const STOP_LOSS_MARGIN_PCT = 0.3;
 
 // Daily-loss kill switch for THIS strategy only.
 //   true  -> obey RISK_MAX_DAILY_LOSS: once the day's realised loss crosses the
@@ -69,8 +93,9 @@ class EmaCross1m {
     this.name = 'EmaCross1m';
     this.description =
       'EMA 9/13 crossover on the 1m chart: long when EMA(9) crosses over EMA(13), short ' +
-      'when it crosses under. An always-in reversal system with no stop and no target — ' +
-      'the next opposite cross closes the position and opens the reverse leg.';
+      'when it crosses under. An always-in reversal system — the next opposite cross closes ' +
+      'the position and opens the reverse leg — with a hard stop loss at ' +
+      `${(STOP_LOSS_MARGIN_PCT * 100).toFixed(0)}% of the committed margin (${STOP_LOSS_MARGIN_PCT}/leverage in price).`;
     // Left blank on purpose: the engine sets this to TRADING_SYMBOL on start
     // (see tradingEngine.applyProductSettings), so the instrument is configured
     // in one place — .env — and can never disagree with the WebSocket feed.
@@ -168,36 +193,54 @@ class EmaCross1m {
     }
 
     // Keep the cross flags explicit so the reason strings can say which side
-    // the fast EMA moved to.
+    // the fast EMA moved to. Only the side we then choose to hold is flipped
+    // (INVERT_SIGNALS), so the entry/exit flow downstream is unchanged.
     const bull = f0 <= s0 && f1 > s1;
     const bear = f0 >= s0 && f1 < s1;
 
     if (bull) {
       this.lastCross = 'bull';
-      this.signalSide = 'long';
+      this.signalSide = INVERT_SIGNALS ? 'short' : 'long';
       this.entryDone = false;
-      return `bull cross (EMA${FAST_LEN} ${this.fmt(f1)} > EMA${SLOW_LEN} ${this.fmt(s1)}) -> hold long`;
+      return `bull cross (EMA${FAST_LEN} ${this.fmt(f1)} > EMA${SLOW_LEN} ${this.fmt(s1)}) -> hold ${this.signalSide}`;
     }
 
     if (bear) {
       this.lastCross = 'bear';
-      this.signalSide = 'short';
+      this.signalSide = INVERT_SIGNALS ? 'long' : 'short';
       this.entryDone = false;
-      return `bear cross (EMA${FAST_LEN} ${this.fmt(f1)} < EMA${SLOW_LEN} ${this.fmt(s1)}) -> hold short`;
+      return `bear cross (EMA${FAST_LEN} ${this.fmt(f1)} < EMA${SLOW_LEN} ${this.fmt(s1)}) -> hold ${this.signalSide}`;
     }
 
     return 'no EMA cross on this bar';
   }
 
   // Places one market entry. An always-in reversal cannot safely rest an
-  // unfilled limit, so this stays a market order. No stop and no target travel
-  // with the order — the next opposite cross is the only exit.
+  // unfilled limit, so this stays a market order. A hard STOP LOSS travels with
+  // the order (see STOP_LOSS_MARGIN_PCT): orderManager rests it reduce-only on
+  // the exchange so the position is protected even if this process dies. There
+  // is no target — the next opposite cross is the other exit.
   buildEntry(side, last) {
     const entry = this.snap(last.close);
     if (!(entry > 0)) return { action: 'HOLD', reason: 'no valid entry price' };
 
     const quantity = this.sizeContracts(entry);
     if (!(quantity > 0)) return { action: 'HOLD', reason: 'size rounds to zero contracts' };
+
+    // 30% of the margin committed = a (30% / leverage) price move, since
+    // margin = price * quantity * contractValue / leverage and P&L per unit of
+    // price is quantity * contractValue. The quantity terms cancel, so this holds
+    // for any size. The stop sits on the loss side of the entry, snapped to the
+    // product's tick size. A disabled (0) or degenerate stop simply leaves the
+    // order without one.
+    let stopLoss = null;
+    if (STOP_LOSS_MARGIN_PCT > 0) {
+      const leverage = Math.max(1, Number(this.leverage) || 1);
+      const stopFraction = STOP_LOSS_MARGIN_PCT / leverage;
+      const raw = side === 'long' ? entry * (1 - stopFraction) : entry * (1 + stopFraction);
+      const snapped = this.snap(raw);
+      if (snapped > 0 && snapped !== entry) stopLoss = snapped;
+    }
 
     this.entryDone = true;
 
@@ -208,11 +251,15 @@ class EmaCross1m {
       price: entry,
       orderType: 'market_order',
       strategyName: this.name,
+      // Carried through orderManager as the resting reduce-only stop.
+      stopLoss: stopLoss || undefined,
       reason:
         `EmaCross ${side}: EMA${FAST_LEN} crossed ${this.lastCross === 'bear' ? 'under' : 'over'} ` +
-        `EMA${SLOW_LEN} at ${entry} — market entry, no bracket, the next opposite cross reverses`,
+        `EMA${SLOW_LEN} at ${entry} — market entry, ` +
+        `${stopLoss ? `SL ${stopLoss} (${(STOP_LOSS_MARGIN_PCT * 100).toFixed(0)}% of margin), ` : 'no stop, '}` +
+        `the next opposite cross reverses`,
       meta: {
-        exitMode: 'reverse',
+        exitMode: stopLoss ? 'reverse+stop' : 'reverse',
         family: 'ema-cross-1m',
         // Carried into the risk context so the daily-loss cap can be opted out
         // of for this strategy (see HALT_ON_DAILY_LOSS above).
